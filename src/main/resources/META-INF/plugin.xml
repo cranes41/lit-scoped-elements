@@ -30,6 +30,8 @@
     <extensions defaultExtensionNs="com.intellij">
         <fileBasedIndex implementation="io.github.litscoped.LitIndex"/>
         <referencesSearch implementation="io.github.litscoped.ScopedTagReferenceSearcher"/>
+        <completion.contributor language="any" order="first"
+                                implementationClass="io.github.litscoped.ScopedTagCompletionContributor"/>
         <renamePsiElementProcessor order="first"
                                    implementation="io.github.litscoped.ScopedElementKeyRenameProcessor"/>
         <projectConfigurable parentId="language"
