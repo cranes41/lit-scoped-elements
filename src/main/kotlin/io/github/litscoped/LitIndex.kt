@@ -6,6 +6,7 @@ import com.intellij.lang.javascript.psi.JSCallExpression
 import com.intellij.lang.javascript.psi.JSLiteralExpression
 import com.intellij.lang.javascript.psi.JSReferenceExpression
 import com.intellij.lang.javascript.psi.ecma6.JSStringTemplateExpression
+import com.intellij.lang.javascript.psi.ecmal4.JSSuperExpression
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiRecursiveElementWalkingVisitor
@@ -34,7 +35,7 @@ class LitIndex : ScalarIndexExtension<String>() {
 
     override fun getName(): ID<String, Void> = NAME
 
-    override fun getVersion(): Int = 1
+    override fun getVersion(): Int = 2
 
     override fun dependsOnFileContent(): Boolean = true
 
@@ -83,6 +84,11 @@ class LitIndex : ScalarIndexExtension<String>() {
             if (value != null) {
                 if (EVENT_NAME_LIKE.matches(value)) keys += string(value)
             } else if (argument !is JSLiteralExpression) {
+                // super(SelectEvent.NAME) in an Event subclass
+                if (call.methodExpression is JSSuperExpression) {
+                    keys += DYNAMIC
+                    return
+                }
                 val callee = (call.methodExpression as? JSReferenceExpression)?.referencedName ?: return
                 if (EVENT_RELATED_CALLEE.matches(callee)) keys += DYNAMIC
             }

@@ -11,6 +11,8 @@ import com.intellij.lang.javascript.psi.JSReferenceExpression
 import com.intellij.lang.javascript.psi.JSVariable
 import com.intellij.lang.javascript.psi.ecma6.JSStringTemplateExpression
 import com.intellij.lang.javascript.psi.ecmal4.JSClass
+import com.intellij.lang.javascript.psi.ecmal4.JSSuperExpression
+import com.intellij.psi.search.searches.ReferencesSearch
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.TextRange
@@ -29,7 +31,10 @@ data class EventBinding(val eventName: String, val range: TextRange, val tagName
 
 /**
  * Links Lit event bindings (`@my-event=${...}`, `addEventListener('my-event', ...)`) with the code that
- * fires them (`new CustomEvent('my-event')`, `new Event('my-event')`).
+ * fires them:
+ * - `new CustomEvent('my-event')`, `new Event('my-event')` (string, `` `template` `` or constant)
+ * - helper calls configured in [LitSettings.eventHelpers], e.g. `this.fire('my-event')`
+ * - `new SelectEvent()` where `class SelectEvent extends Event { constructor() { super('select') } }`
  */
 object LitEvents {
     private val EVENT_CONSTRUCTORS = setOf("CustomEvent", "Event")
@@ -40,6 +45,7 @@ object LitEvents {
     private val TAG_WITH_ATTRIBUTES = Regex("""<([a-zA-Z][\w.\-]*)((?:[^<>"']|"[^"]*"|'[^']*')*)""")
     private val QUOTED = Regex(""""[^"]*"|'[^']*'""")
     private val BINDINGS_KEY = Key.create<CachedValue<List<EventBinding>>>("lit.scoped.eventBindings")
+    private val EVENT_SUPERCLASS = Regex("""\b(CustomEvent|Event)\b""")
     private val EVENT_ATTRIBUTE = Regex("""@([^\s=/>"'`]+)\s*=""")
 
     // ------------------------------------------------------------- templates
@@ -69,16 +75,32 @@ object LitEvents {
 
     // ------------------------------------------------------- JS expressions
 
-    /** Event name when [literal] is the first argument of `new CustomEvent(...)` / `new Event(...)`. */
+    /**
+     * Event name when [literal] names a fired event: first argument of `new CustomEvent(...)` / `new Event(...)`,
+     * of an event helper call, or of the `super(...)` call of an `Event` subclass.
+     */
     fun dispatchedEventName(literal: JSLiteralExpression): String? {
-        val call = callOfFirstArgument(literal) as? JSNewExpression ?: return null
-        return if (calleeName(call) in EVENT_CONSTRUCTORS) literal.stringValue else null
+        val call = callOfFirstArgument(literal) ?: return null
+        return if (isDispatchCall(call)) literalString(literal) else null
     }
 
     /** Event name when [literal] is the first argument of `x.addEventListener(...)`. */
     fun listenedEventName(literal: JSLiteralExpression): String? {
         val call = callOfFirstArgument(literal) ?: return null
-        return if (call !is JSNewExpression && calleeName(call) == ADD_LISTENER) literal.stringValue else null
+        return if (call !is JSNewExpression && calleeName(call) == ADD_LISTENER) literalString(literal) else null
+    }
+
+    /** True when [call]'s first argument is the name of an event it fires (see [dispatchedEventName]). */
+    private fun isDispatchCall(call: JSCallExpression): Boolean = when {
+        call is JSNewExpression -> calleeName(call) in EVENT_CONSTRUCTORS
+        call.methodExpression is JSSuperExpression -> isEventClass(PsiTreeUtil.getParentOfType(call, JSClass::class.java))
+        else -> calleeName(call) in LitSettings.getInstance(call.project).eventHelpers
+    }
+
+    /** True for a class extending `Event` or `CustomEvent`, directly or not. */
+    private fun isEventClass(cls: JSClass?): Boolean {
+        if (cls == null) return false
+        return classHierarchy(cls).any { it.name in EVENT_CONSTRUCTORS || EVENT_SUPERCLASS.containsMatchIn(it.extendsList?.text.orEmpty()) }
     }
 
     private fun callOfFirstArgument(expression: JSExpression): JSCallExpression? {
@@ -132,15 +154,22 @@ object LitEvents {
         val all = mutableListOf<Pair<PsiElement, JSClass?>>()
         for (file in ProjectSearch.filesWithAnyKey(project, listOf(LitIndex.string(eventName), LitIndex.DYNAMIC))) {
             ProgressManager.checkCanceled()
-            for (call in PsiTreeUtil.findChildrenOfType(file, JSNewExpression::class.java)) {
-                if (calleeName(call) !in EVENT_CONSTRUCTORS) continue
+            for (call in PsiTreeUtil.findChildrenOfType(file, JSCallExpression::class.java)) {
+                if (!isDispatchCall(call)) continue
                 val argument = call.arguments.firstOrNull() ?: continue
-                if (evaluateName(argument) == eventName) {
+                if (evaluateName(argument) != eventName) continue
+                if (call.methodExpression is JSSuperExpression) {
+                    // Event subclass: the events are fired where the class is instantiated.
+                    val eventClass = PsiTreeUtil.getParentOfType(call, JSClass::class.java)!!
+                    val instantiations = instantiationsOf(eventClass)
+                    if (instantiations.isEmpty()) all += argument to eventClass
+                    else instantiations.forEach { all += it to PsiTreeUtil.getParentOfType(it, JSClass::class.java) }
+                } else {
                     all += argument to PsiTreeUtil.getParentOfType(call, JSClass::class.java)
                 }
             }
         }
-        return all
+        return all.distinctBy { it.first }
     }
 
     /** Places that listen to [eventName]: `@event-name=` template bindings and `addEventListener(...)` calls. */
@@ -167,6 +196,13 @@ object LitEvents {
         }
         return result
     }
+
+    /** `new EventClass(...)` expressions in the search scope. */
+    private fun instantiationsOf(eventClass: JSClass): List<JSNewExpression> =
+        ReferencesSearch.search(eventClass, ProjectSearch.scope(eventClass.project)).findAll().mapNotNull { reference ->
+            val newExpression = reference.element.parent as? JSNewExpression
+            newExpression?.takeIf { it.methodExpression == reference.element }
+        }
 
     private fun classHierarchy(cls: JSClass): Set<JSClass> {
         val result = LinkedHashSet<JSClass>()

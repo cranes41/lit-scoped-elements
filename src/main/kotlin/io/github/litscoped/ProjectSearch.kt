@@ -16,7 +16,10 @@ import java.util.concurrent.ConcurrentHashMap
 /** Index-backed lookup of JS/TS files, and a project-level cache for search results. */
 object ProjectSearch {
 
-    fun scope(project: Project): GlobalSearchScope = GlobalSearchScope.projectScope(project)
+    /** The project, plus libraries when [LitSettings.searchLibraries] is on. */
+    fun scope(project: Project): GlobalSearchScope =
+        if (LitSettings.getInstance(project).searchLibraries) GlobalSearchScope.allScope(project)
+        else GlobalSearchScope.projectScope(project)
 
     /** JS/TS files in [scope] that have any of the [LitIndex] keys. */
     fun filesWithAnyKey(project: Project, keys: Collection<String>): Collection<PsiFile> {
@@ -33,13 +36,17 @@ object ProjectSearch {
     private val CACHE_KEY = Key.create<CachedValue<ConcurrentHashMap<String, Any>>>("io.github.litscoped.searchCache")
 
     /**
-     * Caches the result of [compute] under [key] until the next PSI change in the project. Results may hold
-     * PSI elements: they are dropped as soon as anything changes.
+     * Caches the result of [compute] under [key] until the next PSI change in the project or settings change.
+     * Results may hold PSI elements: they are dropped as soon as anything changes.
      */
     @Suppress("UNCHECKED_CAST")
     fun <T : Any> cached(project: Project, key: String, compute: () -> T): T {
         val cache = CachedValuesManager.getManager(project).getCachedValue(project, CACHE_KEY, {
-            CachedValueProvider.Result.create(ConcurrentHashMap<String, Any>(), PsiModificationTracker.MODIFICATION_COUNT)
+            CachedValueProvider.Result.create(
+                ConcurrentHashMap<String, Any>(),
+                PsiModificationTracker.MODIFICATION_COUNT,
+                LitSettings.getInstance(project).tracker,
+            )
         }, false)
         cache[key]?.let { return it as T }
         val value = compute()

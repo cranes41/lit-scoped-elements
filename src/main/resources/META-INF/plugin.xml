@@ -29,6 +29,10 @@
 
     <extensions defaultExtensionNs="com.intellij">
         <fileBasedIndex implementation="io.github.litscoped.LitIndex"/>
+        <projectConfigurable parentId="language"
+                             instance="io.github.litscoped.LitSettingsConfigurable"
+                             id="io.github.litscoped.settings"
+                             displayName="Lit Scoped Elements"/>
 
         <gotoDeclarationHandler order="first"
                                 implementation="io.github.litscoped.ScopedElementGotoDeclarationHandler"/>
