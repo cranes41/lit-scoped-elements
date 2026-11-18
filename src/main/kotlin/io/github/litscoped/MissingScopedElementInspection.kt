@@ -4,6 +4,7 @@ import com.intellij.codeInspection.LocalInspectionTool
 import com.intellij.codeInspection.LocalQuickFix
 import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.codeInspection.options.OptPane
+import com.intellij.codeInspection.options.OptPane.checkbox
 import com.intellij.codeInspection.options.OptPane.pane
 import com.intellij.codeInspection.options.OptPane.stringList
 import com.intellij.lang.javascript.psi.ecma6.JSStringTemplateExpression
@@ -27,7 +28,12 @@ class MissingScopedElementInspection : LocalInspectionTool() {
     @JvmField
     var ignoredTags: MutableList<String> = mutableListOf()
 
+    /** Skip tags registered with `customElements.define(...)` or `@customElement(...)`. */
+    @JvmField
+    var ignoreGlobalElements: Boolean = true
+
     override fun getOptionsPane(): OptPane = pane(
+        checkbox("ignoreGlobalElements", "Ignore elements defined globally (customElements.define, @customElement)"),
         stringList("ignoredTags", "Ignored tag names (regular expressions, e.g. 'sl-.*'):"),
     )
 
@@ -46,6 +52,8 @@ class MissingScopedElementInspection : LocalInspectionTool() {
                     if (tag.closing || ignored.any { it.matches(tag.name) }) continue
                     val missingIn = owners.filter { tag.name !in ScopedElements.getScopedElements(it) }.sortedBy { it.name }
                     if (missingIn.isEmpty()) continue
+                    // Only search for a global definition once the tag is known to be missing.
+                    if (ignoreGlobalElements && GlobalElements.isDefinedGlobally(element.project, tag.name)) continue
 
                     val qualify = owners.size > 1 || missingIn.single() != enclosing
                     val fixes = missingIn.mapNotNull { cls ->

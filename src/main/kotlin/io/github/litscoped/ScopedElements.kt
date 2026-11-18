@@ -113,12 +113,16 @@ object ScopedElements {
     /**
      * Navigation targets for [tagName] in [template]: the element class registered in the `scopedElements` of
      * every class that renders the template (see [TemplateOwners]), or the entry itself when unresolved.
+     * When no scoped registry has the tag, the globally defined classes ([GlobalElements]).
      */
-    fun resolveTagTargets(template: JSStringTemplateExpression, tagName: String): List<PsiElement> =
-        TemplateOwners.findOwnerClasses(template)
+    fun resolveTagTargets(template: JSStringTemplateExpression, tagName: String): List<PsiElement> {
+        val scoped = TemplateOwners.findOwnerClasses(template)
             .flatMap { cls -> getScopedElements(cls)[tagName].orEmpty() }
             .map { resolveElementClass(it) ?: it.property }
             .distinct()
+        if (scoped.isNotEmpty()) return scoped
+        return GlobalElements.findDefinitions(template.project, tagName).map { it.target }.distinct()
+    }
 
     /** The element classes registered for [tagName] by the classes that render [template]. */
     fun resolveTagClasses(template: JSStringTemplateExpression, tagName: String): List<JSClass> =
