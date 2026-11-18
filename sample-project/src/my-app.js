@@ -4,6 +4,7 @@ import { UiButton } from './components/ui-button.js';
 import { UiIcon } from './components/ui-icon.js';
 import { UserCard } from './features/user-card.js';
 import { TeamPanel } from './features/team-panel.js';
+import { renderToolbar, renderUsers } from './features/renderers.js';
 
 /**
  * CAS 1 — `static scopedElements = {...}` (forme champ)
@@ -39,6 +40,7 @@ export class MyApp extends ScopedElementsMixin(LitElement) {
 
   render() {
     return html`
+      ${renderToolbar('Sample app')}
       <h1><ui-icon name="home"></ui-icon> Sample app</h1>
 
       <ui-button @click=${() => this.requestUpdate()}>Refresh</ui-button>
@@ -52,6 +54,8 @@ export class MyApp extends ScopedElementsMixin(LitElement) {
       <ui-avatar initials="XX"></ui-avatar>
 
       ${this._renderFooter()}
+
+      ${renderUsers(this.users, this._onUserSelected)}
 
       <team-panel @panel-close=${() => console.log('closed')}></team-panel>
     `;

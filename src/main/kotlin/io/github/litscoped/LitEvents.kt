@@ -93,11 +93,11 @@ object LitEvents {
     // ------------------------------------------------------------- searches
 
     /**
-     * Places that fire [eventName]. With [listenerTagClass] (the element the listener is attached to),
-     * dispatches from that class or its super classes are preferred; events can bubble from any
-     * descendant, so all dispatches are returned when the class itself fires nothing.
+     * Places that fire [eventName]. With [listenerTagClasses] (the classes of the element the listener is
+     * attached to), dispatches from those classes or their super classes are preferred; events can bubble from
+     * any descendant, so all dispatches are returned when those classes fire nothing.
      */
-    fun findDispatches(project: Project, eventName: String, listenerTagClass: JSClass? = null): List<PsiElement> {
+    fun findDispatches(project: Project, eventName: String, listenerTagClasses: Collection<JSClass> = emptyList()): List<PsiElement> {
         val all = mutableListOf<Pair<PsiElement, JSClass?>>()
         for (file in candidateFiles(project, listOf(eventName) + EVENT_CONSTRUCTORS)) {
             for (call in PsiTreeUtil.findChildrenOfType(file, JSNewExpression::class.java)) {
@@ -108,8 +108,8 @@ object LitEvents {
                 }
             }
         }
-        if (listenerTagClass != null) {
-            val hierarchy = classHierarchy(listenerTagClass)
+        if (listenerTagClasses.isNotEmpty()) {
+            val hierarchy = listenerTagClasses.flatMapTo(HashSet(), ::classHierarchy)
             val own = all.filter { (_, cls) -> cls != null && cls in hierarchy }
             if (own.isNotEmpty()) return own.map { it.first }
         }

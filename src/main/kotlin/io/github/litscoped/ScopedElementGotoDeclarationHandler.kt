@@ -19,10 +19,8 @@ class ScopedElementGotoDeclarationHandler : GotoDeclarationHandler {
         if (sourceElement == null) return null
         val (tagName, template) = findTag(sourceElement, offset) ?: return null
         if (!ScopedElements.isLitHtmlTemplate(template)) return null
-        val cls = ScopedElements.findOwnerClass(template) ?: return null
-        val entry = ScopedElements.getScopedElements(cls)[tagName] ?: return null
-        val target = ScopedElements.resolveElementClass(entry) ?: entry.property
-        return arrayOf(target)
+        val targets = ScopedElements.resolveTagTargets(template, tagName)
+        return if (targets.isEmpty()) null else targets.toTypedArray()
     }
 
     private fun findTag(element: PsiElement, offset: Int): Pair<String, JSStringTemplateExpression>? {

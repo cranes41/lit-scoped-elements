@@ -20,6 +20,7 @@ Ou installe le zip (`build/distributions/`) dans ton WebStorm et ouvre ce dossie
 | `src/features/user-card.js` | getter + `...sharedElements` | `ui-button` | `<ui-badge>`, `<ui-icon>` → via la constante |
 | `src/features/team-panel.js` | `...super.scopedElements` / héritage seul | `ui-badge` (TeamPanel), `ui-avatar` (SimplePanel) | `<ui-button>` → UiButton via BasePanel |
 | `src/features/my-dashboard.ts` | TypeScript | `ui-avatar` | `<ui-badge>` |
+| `src/features/renderers.js` | sous-fonctions de rendu hors classe, appelées par MyApp et TeamPanel | `ui-tooltip` (manque dans les 2 classes, un quick fix par classe) | `<ui-button>`, `<user-card>`, `@user-selected` |
 | `src/features/edge-cases.js` | sans scoped elements, objet vide, balises globales, non vérifiés | `ui-button` (EmptyScoped), `sl-button` | — |
 
 ### Événements

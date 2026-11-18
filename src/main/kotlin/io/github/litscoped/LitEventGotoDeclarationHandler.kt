@@ -22,8 +22,8 @@ class LitEventGotoDeclarationHandler : GotoDeclarationHandler {
         val project = sourceElement.project
 
         findBinding(sourceElement, offset)?.let { (binding, template) ->
-            val tagClass = ScopedElements.resolveTagClass(template, binding.tagName)
-            return LitEvents.findDispatches(project, binding.eventName, tagClass).toTargets()
+            val tagClasses = ScopedElements.resolveTagClasses(template, binding.tagName)
+            return LitEvents.findDispatches(project, binding.eventName, tagClasses).toTargets()
         }
 
         val literal = sourceElement.parent as? JSLiteralExpression ?: return null

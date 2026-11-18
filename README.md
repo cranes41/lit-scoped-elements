@@ -19,6 +19,13 @@ opening and closing tags and follows imports.
 - Event names held in a constant (`new Event(PANEL_CLOSE)`, `const PANEL_CLOSE = 'panel-close'`) are resolved.
 - Events with no dispatch in the project, such as `@click`, keep WebStorm's default navigation.
 
+**Sub render functions**: templates written outside the class are supported too: a function such as
+`function renderToolbar() { return html`...` }` or `const renderRow = (x) => html`...``, or a variable holding a
+template. The plugin finds the classes that call them, directly or through other functions and in any file of the
+project, and uses *their* `scopedElements` for navigation, event narrowing and the inspection. A function used by
+several components must have its tags declared in each of them. The warning names the classes that are missing a
+tag, with one quick fix per class. A function that no class uses is not checked.
+
 **Inspection: "Custom element is not declared in scopedElements"**: checks every `` html`...` `` template in
 the class (`render()` and helper methods) and reports custom elements missing from `scopedElements`.
 The quick fix (Alt+Enter) adds `'my-tag': MyTag` to the declaration.

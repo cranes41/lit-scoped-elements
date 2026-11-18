@@ -24,6 +24,11 @@ class MyCard extends ScopedElementsMixin(LitElement) {
   a super class) are checked. Entries inherited from a super class or spread with
   <code>...super.scopedElements</code> are taken into account.
 </p>
+<p>
+  Templates rendered by a function outside the class (for example <code>function renderRow() { return html`...` }</code>)
+  are checked against the <code>scopedElements</code> of every class that calls that function, directly or
+  through other functions.
+</p>
 <!-- tooltip end -->
 <p>
   Use the <b>Ignored tag names</b> option to exclude globally registered elements (regular expressions).

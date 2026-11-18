@@ -1,6 +1,7 @@
 import { html } from 'lit';
 import { BasePanel } from './base-panel.js';
 import { UiAvatar } from '../components/ui-avatar.js';
+import { renderToolbar } from './renderers.js';
 
 /**
  * CAS 3a — `...super.scopedElements`
@@ -25,6 +26,7 @@ export class TeamPanel extends BasePanel {
 
   render() {
     return html`
+      ${renderToolbar('Team')}
       <ui-icon name="team"></ui-icon>
       <ui-button @click=${this.close}>Close</ui-button>
       <ui-avatar initials="AL"></ui-avatar>

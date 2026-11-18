@@ -91,15 +91,18 @@ object ScopedElements {
         return String(chars)
     }
 
-    /** The class registered for [tagName] in the `scopedElements` that apply to [template]. */
-    fun resolveTagClass(template: JSStringTemplateExpression, tagName: String): JSClass? {
-        val cls = findOwnerClass(template) ?: return null
-        val entry = getScopedElements(cls)[tagName] ?: return null
-        return resolveElementClass(entry) as? JSClass
-    }
+    /**
+     * Navigation targets for [tagName] in [template]: the element class registered in the `scopedElements` of
+     * every class that renders the template (see [TemplateOwners]), or the entry itself when unresolved.
+     */
+    fun resolveTagTargets(template: JSStringTemplateExpression, tagName: String): List<PsiElement> =
+        TemplateOwners.findOwnerClasses(template)
+            .mapNotNull { cls -> getScopedElements(cls)[tagName]?.let { resolveElementClass(it) ?: it.property } }
+            .distinct()
 
-    /** The class whose `scopedElements` applies to [template], or null when it is not inside a class. */
-    fun findOwnerClass(template: PsiElement): JSClass? = PsiTreeUtil.getParentOfType(template, JSClass::class.java)
+    /** The element classes registered for [tagName] by the classes that render [template]. */
+    fun resolveTagClasses(template: JSStringTemplateExpression, tagName: String): List<JSClass> =
+        resolveTagTargets(template, tagName).filterIsInstance<JSClass>()
 
     // ----------------------------------------------------------- declarations
 

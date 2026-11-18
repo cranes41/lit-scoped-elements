@@ -9,10 +9,14 @@ import com.intellij.codeInspection.options.OptPane.stringList
 import com.intellij.lang.javascript.psi.ecma6.JSStringTemplateExpression
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiElementVisitor
+import com.intellij.psi.SmartPointerManager
+import com.intellij.psi.util.PsiTreeUtil
+import com.intellij.lang.javascript.psi.ecmal4.JSClass
 
 /**
- * Reports custom elements used in a Lit `html` template (render() and any other method of the class)
- * that are not registered in the class's `scopedElements`.
+ * Reports custom elements used in a Lit `html` template that are not registered in the `scopedElements` of the
+ * class rendering it: the enclosing class (render() and any other method), or, for templates written in a
+ * function outside the class, every class that calls that function.
  *
  * Only classes that use scoped elements (declare `scopedElements` or apply `ScopedElementsMixin`,
  * directly or through a super class) are checked.
@@ -32,20 +36,29 @@ class MissingScopedElementInspection : LocalInspectionTool() {
         return object : PsiElementVisitor() {
             override fun visitElement(element: PsiElement) {
                 if (element !is JSStringTemplateExpression || !ScopedElements.isLitHtmlTemplate(element)) return
-                val cls = ScopedElements.findOwnerClass(element) ?: return
-                if (!ScopedElements.usesScopedElements(cls)) return
+                // The classes rendering this template: the enclosing class, or every class calling the
+                // sub render function that contains it.
+                val owners = TemplateOwners.findOwnerClasses(element).filter(ScopedElements::usesScopedElements)
+                if (owners.isEmpty()) return
+                val enclosing = PsiTreeUtil.getParentOfType(element, JSClass::class.java)
 
-                val declared = ScopedElements.getScopedElements(cls)
-                val canFix = ScopedElements.findOwnObjectLiteral(cls) != null
                 for (tag in ScopedElements.findCustomElementTags(element)) {
-                    if (tag.closing || tag.name in declared) continue
-                    if (ignored.any { it.matches(tag.name) }) continue
-                    val fixes: Array<LocalQuickFix> = if (canFix) arrayOf(AddToScopedElementsFix(tag.name)) else LocalQuickFix.EMPTY_ARRAY
+                    if (tag.closing || ignored.any { it.matches(tag.name) }) continue
+                    val missingIn = owners.filter { tag.name !in ScopedElements.getScopedElements(it) }.sortedBy { it.name }
+                    if (missingIn.isEmpty()) continue
+
+                    val qualify = owners.size > 1 || missingIn.single() != enclosing
+                    val fixes = missingIn.mapNotNull { cls ->
+                        ScopedElements.findOwnObjectLiteral(cls)?.let { literal ->
+                            AddToScopedElementsFix(tag.name, cls.name.takeIf { qualify }, SmartPointerManager.createPointer(literal))
+                        }
+                    }
+                    val where = missingIn.joinToString(", ") { "${it.name ?: "the class"}.scopedElements" }
                     holder.registerProblem(
                         element,
                         tag.range,
-                        "Custom element <${tag.name}> is not declared in ${cls.name ?: "the class"}.scopedElements",
-                        *fixes,
+                        "Custom element <${tag.name}> is not declared in $where",
+                        *fixes.toTypedArray<LocalQuickFix>(),
                     )
                 }
             }

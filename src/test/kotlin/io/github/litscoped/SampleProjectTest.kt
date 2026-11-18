@@ -37,6 +37,23 @@ class SampleProjectTest : BasePlatformTestCase() {
 
     fun testEdgeCases() = assertEquals(listOf("sl-button", "ui-button"), reportedTags("src/features/edge-cases.js"))
 
+    fun testSubRenderFunctions() {
+        myFixture.configureFromTempProjectFile("src/features/renderers.js")
+        val warnings = myFixture.doHighlighting(HighlightSeverity.WARNING)
+            .mapNotNull { it.description }
+            .filter { it.contains("scopedElements") }
+        assertEquals(
+            listOf("Custom element <ui-tooltip> is not declared in MyApp.scopedElements, TeamPanel.scopedElements"),
+            warnings,
+        )
+        val fixes = myFixture.getAllQuickFixes().map { it.text }.filter { it.startsWith("Add 'ui-tooltip'") }.sorted()
+        assertEquals(listOf("Add 'ui-tooltip' to MyApp.scopedElements", "Add 'ui-tooltip' to TeamPanel.scopedElements"), fixes)
+
+        assertTarget("src/features/renderers.js", "<ui-button>\${", "UiButton", "ui-button.js")
+        assertTarget("src/features/renderers.js", "<user-card .user", "UserCard", "user-card.js")
+        assertEquals(listOf("user-card.js:'user-selected'"), eventTargets("src/features/renderers.js", "@user-selected="))
+    }
+
     fun testNavigationAcrossSample() {
         assertTarget("src/my-app.js", "<ui-button @click", "UiButton", "ui-button.js")
         assertTarget("src/my-app.js", "<user-card .user", "UserCard", "user-card.js")
@@ -51,7 +68,7 @@ class SampleProjectTest : BasePlatformTestCase() {
         assertEquals(listOf("base-panel.js:PANEL_CLOSE"), eventTargets("src/my-app.js", "@panel-close="))
         // new CustomEvent('user-selected') -> who listens
         assertEquals(
-            listOf("my-app.js:@user-selected", "team-panel.js:'user-selected'"),
+            listOf("my-app.js:@user-selected", "renderers.js:@user-selected", "team-panel.js:'user-selected'"),
             eventTargets("src/features/user-card.js", "'user-selected'"),
         )
         // addEventListener('user-selected') -> where it is fired
