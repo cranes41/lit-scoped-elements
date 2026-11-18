@@ -56,6 +56,46 @@ class InheritedTemplateTest : BasePlatformTestCase() {
             export class BelowRemapped extends Remapped {}
             """.trimIndent(),
         )
+        myFixture.addFileToProject(
+            "mixins.js",
+            """
+            export const SomeMixin = (superClass) => class extends superClass {};
+            export const OtherMixin = (superClass) => class extends superClass {};
+            """.trimIndent(),
+        )
+        myFixture.addFileToProject(
+            "mixin-subs.js",
+            """
+            import { SomeMixin, OtherMixin } from './mixins.js';
+            import { Base } from './base.js';
+            // Own registry without the tag, through a mixin.
+            export class ViaMixin extends SomeMixin(Base) {
+              static scopedElements = {};
+            }
+            // No own registry: inherits Base's through the mixin, so <child-el> is declared.
+            export class ViaMixinInherits extends SomeMixin(Base) {}
+            // Nested mixins.
+            export class ViaNestedMixins extends OtherMixin(SomeMixin(Base)) {
+              static scopedElements = {};
+            }
+            // Through a mixin but replaces render(): not an owner.
+            export class ViaMixinReplacing extends SomeMixin(Base) {
+              static scopedElements = {};
+              render() { return html`<p>own</p>`; }
+            }
+            """.trimIndent(),
+        )
+        myFixture.addFileToProject(
+            "mixin-subs.ts",
+            """
+            import { Base } from './base.js';
+            type Ctor<T = {}> = new (...args: any[]) => T;
+            function TypedMixin<T extends Ctor>(superClass: T) { return class extends superClass {}; }
+            export class ViaTypedMixin extends TypedMixin(Base) {
+              static scopedElements = {};
+            }
+            """.trimIndent(),
+        )
     }
 
     fun testOwnersOfBaseTemplate() {
@@ -64,7 +104,10 @@ class InheritedTemplateTest : BasePlatformTestCase() {
             file, com.intellij.lang.javascript.psi.ecma6.JSStringTemplateExpression::class.java,
         ).first { ScopedElements.isLitHtmlTemplate(it) }
         assertEquals(
-            listOf("Base", "BelowRemapped", "Missing", "Remapped", "Wrapping"),
+            listOf(
+                "Base", "BelowRemapped", "Missing", "Remapped",
+                "ViaMixin", "ViaMixinInherits", "ViaNestedMixins", "ViaTypedMixin", "Wrapping",
+            ),
             TemplateOwners.findOwnerClasses(template).mapNotNull { it.name }.sorted(),
         )
     }
@@ -77,7 +120,10 @@ class InheritedTemplateTest : BasePlatformTestCase() {
             .filter { it.contains("scopedElements") }
         // Both <child-el> tags: in render() and in the arrow callback inside it.
         assertEquals(
-            List(2) { "Custom element <child-el> is not declared in Missing.scopedElements, Wrapping.scopedElements" },
+            List(2) {
+                "Custom element <child-el> is not declared in Missing.scopedElements, ViaMixin.scopedElements, " +
+                    "ViaNestedMixins.scopedElements, ViaTypedMixin.scopedElements, Wrapping.scopedElements"
+            },
             warnings,
         )
     }

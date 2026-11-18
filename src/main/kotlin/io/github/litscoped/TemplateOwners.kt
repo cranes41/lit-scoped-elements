@@ -70,7 +70,7 @@ object TemplateOwners {
         val scope = GlobalSearchScope.projectScope(cls.project)
         while (queue.isNotEmpty() && result.size < MAX_SUBCLASSES) {
             val current = queue.removeFirst()
-            for (subclass in JSClassSearch.searchClassInheritors(current, false, scope).findAll()) {
+            for (subclass in directSubclasses(current, scope)) {
                 if (subclass in result) continue
                 val override = ownMember(subclass, memberName)
                 if (override == null || callsSuper(override, memberName)) {
@@ -78,6 +78,19 @@ object TemplateOwners {
                     queue += subclass
                 }
             }
+        }
+        return result
+    }
+
+    /**
+     * Direct subclasses of [cls]: `extends Base` from the inheritance index, plus `extends SomeMixin(Base)`,
+     * which the index can't see (it only records a class name written after `extends`, not a call), found by
+     * searching the references to [cls].
+     */
+    private fun directSubclasses(cls: JSClass, scope: GlobalSearchScope): Set<JSClass> {
+        val result = LinkedHashSet<JSClass>(JSClassSearch.searchClassInheritors(cls, false, scope).findAll())
+        for (reference in ReferencesSearch.search(cls, scope).findAll()) {
+            ScopedElements.classExtendingThroughMixin(reference.element)?.takeIf { it != cls }?.let(result::add)
         }
         return result
     }

@@ -1,6 +1,8 @@
 package io.github.litscoped
 
 import com.intellij.lang.ecmascript6.psi.ES6ImportedBinding
+import com.intellij.lang.javascript.psi.JSArgumentList
+import com.intellij.lang.javascript.psi.JSCallExpression
 import com.intellij.lang.javascript.psi.JSExpression
 import com.intellij.lang.javascript.psi.JSFunction
 import com.intellij.lang.javascript.psi.JSObjectLiteralExpression
@@ -129,7 +131,7 @@ object ScopedElements {
         if (!visited.add(cls)) return false
         if (findDeclarationExpressions(cls).isNotEmpty()) return true
         if (cls.extendsList?.text?.contains(MIXIN_NAME) == true) return true
-        return cls.superClasses.any { computeUsesScopedElements(it, visited) }
+        return superClassesOf(cls).any { computeUsesScopedElements(it, visited) }
     }
 
     /**
@@ -192,7 +194,10 @@ object ScopedElements {
         val expressions = findDeclarationExpressions(cls)
         if (expressions.isEmpty()) {
             // Static members are inherited: no own declaration means the super class one applies.
-            for (superClass in cls.superClasses) result.putAll(collect(superClass, visited, depth + 1))
+            // The nearest super class wins for a tag registered by several of them.
+            for (superClass in superClassesOf(cls)) {
+                for ((tag, entries) in collect(superClass, visited, depth + 1)) result.putIfAbsent(tag, entries)
+            }
         } else {
             // Each return branch of a getter is an alternative registry: merge them, keeping every entry.
             // Inside one expression, a later entry overrides an earlier one, as in JavaScript.
@@ -226,7 +231,7 @@ object ScopedElements {
                 if (expr.referencedName == MEMBER_NAME && qualifier != null) {
                     // ...super.scopedElements  /  ...OtherElement.scopedElements
                     val classes = when (qualifier) {
-                        is JSSuperExpression -> owner.superClasses.toList()
+                        is JSSuperExpression -> superClassesOf(owner)
                         is JSReferenceExpression -> listOfNotNull(resolveDeep(qualifier) as? JSClass)
                         else -> emptyList()
                     }
@@ -238,6 +243,38 @@ object ScopedElements {
                 if (resolved is JSVariable) collectFromExpression(resolved.initializer, owner, out, visited, depth + 1)
             }
         }
+    }
+
+    // ------------------------------------------------------------ inheritance
+
+    /**
+     * Super classes of [cls], including the ones passed to a mixin in its `extends` clause.
+     *
+     * For `class A extends SomeMixin(Base)`, the IDE's type analysis often stops at the anonymous class the
+     * mixin returns (always in plain JavaScript), so `Base` is added from the call arguments. Nested mixins,
+     * `extends A(B(Base))`, are handled too. The direct super classes come first.
+     */
+    fun superClassesOf(cls: JSClass): List<JSClass> {
+        val result = LinkedHashSet<JSClass>(cls.superClasses.toList())
+        val extendsList = cls.extendsList ?: return result.toList()
+        for (call in PsiTreeUtil.findChildrenOfType(extendsList, JSCallExpression::class.java)) {
+            for (argument in call.arguments) {
+                val resolved = (unwrap(argument) as? JSReferenceExpression)?.let(::resolveDeep)
+                if (resolved is JSClass && resolved != cls) result += resolved
+            }
+        }
+        return result.toList()
+    }
+
+    /**
+     * True when [reference] (to a class) is a mixin argument in the `extends` clause of a class, as `Base` in
+     * `class A extends SomeMixin(Base)`; returns that class.
+     */
+    fun classExtendingThroughMixin(reference: PsiElement): JSClass? {
+        if (reference.parent !is JSArgumentList) return null
+        val cls = PsiTreeUtil.getParentOfType(reference, JSClass::class.java) ?: return null
+        val extendsList = cls.extendsList ?: return null
+        return if (PsiTreeUtil.isAncestor(extendsList, reference, true)) cls else null
     }
 
     // ------------------------------------------------------------- navigation

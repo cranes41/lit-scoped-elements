@@ -152,7 +152,7 @@ object LitEvents {
         val queue = ArrayDeque(listOf(cls))
         while (queue.isNotEmpty() && result.size < 32) {
             val current = queue.removeFirst()
-            if (result.add(current)) queue.addAll(current.superClasses)
+            if (result.add(current)) queue.addAll(ScopedElements.superClassesOf(current))
         }
         return result
     }
