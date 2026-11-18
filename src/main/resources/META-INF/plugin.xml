@@ -34,6 +34,10 @@
                                 implementationClass="io.github.litscoped.ScopedTagCompletionContributor"/>
         <completion.contributor language="any" order="first"
                                 implementationClass="io.github.litscoped.ScopedEventCompletionContributor"/>
+        <codeInsight.lineMarkerProvider language="JavaScript"
+                                        implementationClass="io.github.litscoped.JsLitLineMarkerProvider"/>
+        <codeInsight.lineMarkerProvider language="HTML"
+                                        implementationClass="io.github.litscoped.TemplateEventLineMarkerProvider"/>
         <renamePsiElementProcessor order="first"
                                    implementation="io.github.litscoped.ScopedElementKeyRenameProcessor"/>
         <projectConfigurable parentId="language"
