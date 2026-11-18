@@ -118,6 +118,34 @@ class ScopedElementUsagesTest : BasePlatformTestCase() {
         assertNull(ScopedElementUsagesGotoHandler().getGotoDeclarationTargets(file.findElementAt(offset), offset, null))
     }
 
+    fun testGetterWithSeveralReturnBranches() {
+        myFixture.addFileToProject(
+            "branches.js",
+            """
+            import { ChildEl } from './child-el.js';
+            class Small extends HTMLElement {}
+            class Branchy extends ScopedElementsMixin(LitElement) {
+              static get scopedElements() {
+                if (this.compact) return { 'child-el': Small };
+                return { ...super.scopedElements, 'child-el': ChildEl };
+              }
+              render() { return html`<child-el id="branchy"></child-el>`; }
+            }
+            """.trimIndent(),
+        )
+        // Each branch's key finds the template.
+        assertEquals(listOf("branchy"), usageIds("branches.js", "'child-el': Small"))
+        assertEquals(listOf("branchy"), usageIds("branches.js", "'child-el': ChildEl"))
+        // The tag lists both possible classes.
+        val file = myFixture.configureFromTempProjectFile("branches.js")
+        val offset = file.text.indexOf("<child-el") + 2
+        val targets = ScopedElementGotoDeclarationHandler().getGotoDeclarationTargets(file.findElementAt(offset), offset, null)
+        assertEquals(
+            listOf("ChildEl", "Small"),
+            targets.orEmpty().map { (it as com.intellij.lang.javascript.psi.ecmal4.JSClass).name!! }.sorted(),
+        )
+    }
+
     fun testOnlyKeyIsHandled() {
         myFixture.configureFromTempProjectFile("my-el.js")
         val text = myFixture.file.text

@@ -44,7 +44,7 @@ class ScopedElementUsagesGotoHandler : GotoDeclarationHandler {
                     val tags = ScopedElements.findCustomElementTags(template).filter { !it.closing && it.name == tagName }
                     if (tags.isEmpty()) continue
                     val applies = TemplateOwners.findOwnerClasses(template)
-                        .any { ScopedElements.getScopedElements(it)[tagName]?.property == property }
+                        .any { owner -> ScopedElements.getScopedElements(owner)[tagName].orEmpty().any { it.property == property } }
                     if (!applies) continue
                     for (tag in tags) {
                         // Range from "<" to the end of the tag name.

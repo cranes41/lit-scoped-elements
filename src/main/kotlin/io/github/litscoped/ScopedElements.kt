@@ -105,7 +105,8 @@ object ScopedElements {
      */
     fun resolveTagTargets(template: JSStringTemplateExpression, tagName: String): List<PsiElement> =
         TemplateOwners.findOwnerClasses(template)
-            .mapNotNull { cls -> getScopedElements(cls)[tagName]?.let { resolveElementClass(it) ?: it.property } }
+            .flatMap { cls -> getScopedElements(cls)[tagName].orEmpty() }
+            .map { resolveElementClass(it) ?: it.property }
             .distinct()
 
     /** The element classes registered for [tagName] by the classes that render [template]. */
@@ -126,12 +127,16 @@ object ScopedElements {
         return cls.superClasses.any { computeUsesScopedElements(it, visited) }
     }
 
-    /** All tag names available in [cls], including the ones inherited or spread from other declarations. */
-    fun getScopedElements(cls: JSClass): Map<String, ScopedElementEntry> = CachedValuesManager.getCachedValue(cls) {
+    /**
+     * All tag names available in [cls], including the ones inherited or spread from other declarations.
+     *
+     * A tag usually maps to one entry. It maps to several when a `scopedElements` getter has several `return`
+     * branches registering it: each branch is a possible registry, so all of its entries are kept.
+     */
+    fun getScopedElements(cls: JSClass): Map<String, List<ScopedElementEntry>> = CachedValuesManager.getCachedValue(cls) {
         CachedValueProvider.Result.create(collect(cls, HashSet(), 0), PsiModificationTracker.MODIFICATION_COUNT)
     }
 
-    /** The object literal written directly in [cls]'s own `scopedElements` declaration, if any. */
     /**
      * True when [literal] defines scoped elements: it is the `scopedElements` declaration of its class (field or
      * getter return value), or an object held in a variable that is spread into such a declaration
@@ -158,6 +163,7 @@ object ScopedElements {
         return spreadIntoScopedElements
     }
 
+    /** The object literal written directly in [cls]'s own `scopedElements` declaration, if any. */
     fun findOwnObjectLiteral(cls: JSClass): JSObjectLiteralExpression? =
         findDeclarationExpressions(cls).map(::unwrap).filterIsInstance<JSObjectLiteralExpression>().firstOrNull()
 
@@ -175,15 +181,21 @@ object ScopedElements {
             .mapNotNull { it.expression }
     }
 
-    private fun collect(cls: JSClass, visited: MutableSet<JSClass>, depth: Int): Map<String, ScopedElementEntry> {
+    private fun collect(cls: JSClass, visited: MutableSet<JSClass>, depth: Int): Map<String, List<ScopedElementEntry>> {
         if (depth > MAX_DEPTH || !visited.add(cls)) return emptyMap()
-        val result = LinkedHashMap<String, ScopedElementEntry>()
+        val result = LinkedHashMap<String, List<ScopedElementEntry>>()
         val expressions = findDeclarationExpressions(cls)
         if (expressions.isEmpty()) {
             // Static members are inherited: no own declaration means the super class one applies.
             for (superClass in cls.superClasses) result.putAll(collect(superClass, visited, depth + 1))
         } else {
-            for (expression in expressions) collectFromExpression(expression, cls, result, visited, depth + 1)
+            // Each return branch of a getter is an alternative registry: merge them, keeping every entry.
+            // Inside one expression, a later entry overrides an earlier one, as in JavaScript.
+            for (expression in expressions) {
+                val branch = LinkedHashMap<String, List<ScopedElementEntry>>()
+                collectFromExpression(expression, cls, branch, visited, depth + 1)
+                for ((tag, entries) in branch) result[tag] = (result[tag].orEmpty() + entries).distinct()
+            }
         }
         return result
     }
@@ -191,7 +203,7 @@ object ScopedElements {
     private fun collectFromExpression(
         expression: JSExpression?,
         owner: JSClass,
-        out: MutableMap<String, ScopedElementEntry>,
+        out: MutableMap<String, List<ScopedElementEntry>>,
         visited: MutableSet<JSClass>,
         depth: Int,
     ) {
@@ -199,7 +211,7 @@ object ScopedElements {
         when (val expr = unwrap(expression)) {
             is JSObjectLiteralExpression -> for (element in expr.propertiesIncludingSpreads) {
                 when (element) {
-                    is JSProperty -> element.name?.let { out[it] = ScopedElementEntry(it, element) }
+                    is JSProperty -> element.name?.let { out[it] = listOf(ScopedElementEntry(it, element)) }
                     is JSSpreadExpression -> collectFromExpression(element.expression, owner, out, visited, depth + 1)
                 }
             }
