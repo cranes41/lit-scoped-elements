@@ -197,6 +197,40 @@ object LitEvents {
         return result
     }
 
+    /**
+     * Names of the events fired by code in [cls] or its super classes: dispatch calls (see [dispatchedEventName])
+     * and instantiations of `Event` subclasses. Cached until the next PSI or settings change.
+     */
+    fun eventsFiredBy(cls: JSClass): Set<String> = CachedValuesManager.getCachedValue(cls) {
+        val names = LinkedHashSet<String>()
+        for (current in classHierarchy(cls)) {
+            ProgressManager.checkCanceled()
+            for (call in PsiTreeUtil.findChildrenOfType(current, JSCallExpression::class.java)) {
+                if (call.methodExpression is JSSuperExpression) continue
+                if (isDispatchCall(call)) {
+                    evaluateName(call.arguments.firstOrNull())?.let(names::add)
+                } else if (call is JSNewExpression) {
+                    val created = (call.methodExpression as? JSReferenceExpression)?.let(ScopedElements::resolveDeep) as? JSClass
+                    if (created != null) eventSubclassName(created)?.let(names::add)
+                }
+            }
+        }
+        CachedValueProvider.Result.create(
+            names as Set<String>,
+            PsiModificationTracker.MODIFICATION_COUNT,
+            LitSettings.getInstance(cls.project).tracker,
+        )
+    }
+
+    /** The event name an `Event` subclass passes to `super(...)` in its constructor. */
+    private fun eventSubclassName(eventClass: JSClass): String? {
+        if (!isEventClass(eventClass)) return null
+        val constructor = eventClass.constructor ?: return null
+        val superCall = PsiTreeUtil.findChildrenOfType(constructor, JSCallExpression::class.java)
+            .firstOrNull { it.methodExpression is JSSuperExpression } ?: return null
+        return evaluateName(superCall.arguments.firstOrNull())
+    }
+
     /** `new EventClass(...)` expressions in the search scope. */
     private fun instantiationsOf(eventClass: JSClass): List<JSNewExpression> =
         ReferencesSearch.search(eventClass, ProjectSearch.scope(eventClass.project)).findAll().mapNotNull { reference ->
