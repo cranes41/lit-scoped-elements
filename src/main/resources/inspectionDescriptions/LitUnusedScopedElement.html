@@ -1,0 +1,15 @@
+<html>
+<body>
+Reports <code>scopedElements</code> entries whose tag is not used in any Lit template the entry applies to.
+<p>
+  A template counts when it is rendered by the class declaring the entry, one of its subclasses, a class
+  spreading the object that contains the entry (<code>...sharedElements</code>), or a sub render function
+  called by those classes.
+</p>
+<!-- tooltip end -->
+<p>
+  Tags built at runtime (for example with <code>unsafeStatic</code>) can't be seen, so an entry only used that way
+  is reported too.
+</p>
+</body>
+</html>

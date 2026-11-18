@@ -57,5 +57,14 @@
                          enabledByDefault="true"
                          level="WARNING"
                          implementationClass="io.github.litscoped.MissingScopedElementInspection"/>
+        <localInspection language="JavaScript"
+                         applyToDialects="true"
+                         shortName="LitUnusedScopedElement"
+                         displayName="Unused scopedElements entry"
+                         groupPath="JavaScript and TypeScript"
+                         groupName="Lit / Open WC"
+                         enabledByDefault="true"
+                         level="WARNING"
+                         implementationClass="io.github.litscoped.UnusedScopedElementInspection"/>
     </extensions>
 </idea-plugin>

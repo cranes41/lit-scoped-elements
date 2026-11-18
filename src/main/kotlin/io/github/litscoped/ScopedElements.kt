@@ -159,7 +159,11 @@ object ScopedElements {
      *
      * Cheap for unrelated objects: a reference search only runs for objects assigned to a variable.
      */
-    fun isScopedElementsObject(literal: JSObjectLiteralExpression, depth: Int = 0): Boolean {
+    fun isScopedElementsObject(literal: JSObjectLiteralExpression): Boolean = CachedValuesManager.getCachedValue(literal) {
+        CachedValueProvider.Result.create(computeIsScopedElementsObject(literal, 0), PsiModificationTracker.MODIFICATION_COUNT)
+    }
+
+    private fun computeIsScopedElementsObject(literal: JSObjectLiteralExpression, depth: Int): Boolean {
         if (depth > MAX_SPREAD_DEPTH) return false
         val cls = PsiTreeUtil.getParentOfType(literal, JSClass::class.java)
         if (cls != null && findDeclarationExpressions(cls).any { unwrap(it) == literal }) return true
@@ -174,7 +178,7 @@ object ScopedElements {
             ProgressManager.checkCanceled()
             val spread = reference.element.parent as? JSSpreadExpression
             val outer = spread?.parent as? JSObjectLiteralExpression
-            outer == null || !isScopedElementsObject(outer, depth + 1) // false stops the search: found
+            outer == null || !computeIsScopedElementsObject(outer, depth + 1) // false stops the search: found
         })
         return spreadIntoScopedElements
     }
