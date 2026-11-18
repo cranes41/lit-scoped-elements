@@ -37,6 +37,25 @@ class SampleProjectTest : BasePlatformTestCase() {
 
     fun testEdgeCases() = assertEquals(listOf("sl-button", "ui-button"), reportedTags("src/features/edge-cases.js"))
 
+    fun testScopedElementKeyToTemplates() {
+        // MyApp's entry: its own template + the toolbar sub function it calls.
+        assertEquals(listOf("my-app.js", "renderers.js"), usageFiles("src/my-app.js", "'ui-button': UiButton"))
+        // BasePanel's entry: used by TeamPanel (spread), SimplePanel (inherited) and the toolbar called by TeamPanel.
+        assertEquals(
+            listOf("renderers.js", "team-panel.js", "team-panel.js", "team-panel.js"),
+            usageFiles("src/features/base-panel.js", "'ui-button': UiButton"),
+        )
+    }
+
+    private fun usageFiles(path: String, marker: String): List<String> {
+        val file = myFixture.configureFromTempProjectFile(path)
+        val offset = file.text.indexOf(marker) + 2
+        return ScopedElementUsagesGotoHandler().getGotoDeclarationTargets(file.findElementAt(offset), offset, null)
+            .orEmpty()
+            .map { it.containingFile.name }
+            .sorted()
+    }
+
     fun testSubRenderFunctions() {
         myFixture.configureFromTempProjectFile("src/features/renderers.js")
         val warnings = myFixture.doHighlighting(HighlightSeverity.WARNING)

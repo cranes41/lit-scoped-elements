@@ -9,6 +9,8 @@
     <ul>
       <li><b>Navigation</b>: Ctrl/Cmd+Click (Go to Declaration) on a custom element tag in an
           <code>html`...`</code> template opens the class registered for it in <code>scopedElements</code>.</li>
+      <li><b>Usages</b>: Ctrl/Cmd+Click on a tag name key of <code>scopedElements</code> lists where that element
+          is used in the templates the declaration applies to.</li>
       <li><b>Events</b>: Ctrl/Cmd+Click on <code>@my-event</code> in a template shows where the event is fired
           (<code>new CustomEvent('my-event')</code>); Ctrl/Cmd+Click on the event name in
           <code>new CustomEvent('my-event')</code> shows who listens to it (<code>@my-event</code> bindings and
@@ -30,6 +32,8 @@
                                 implementation="io.github.litscoped.ScopedElementGotoDeclarationHandler"/>
         <gotoDeclarationHandler order="first"
                                 implementation="io.github.litscoped.LitEventGotoDeclarationHandler"/>
+        <gotoDeclarationHandler order="first"
+                                implementation="io.github.litscoped.ScopedElementUsagesGotoHandler"/>
 
         <localInspection language="JavaScript"
                          applyToDialects="true"

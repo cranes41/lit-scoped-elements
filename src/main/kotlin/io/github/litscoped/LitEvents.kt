@@ -1,6 +1,5 @@
 package io.github.litscoped
 
-import com.intellij.lang.injection.InjectedLanguageManager
 import com.intellij.lang.javascript.psi.JSArgumentList
 import com.intellij.lang.javascript.psi.JSCallExpression
 import com.intellij.lang.javascript.psi.JSExpression
@@ -21,7 +20,6 @@ import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.search.PsiSearchHelper
 import com.intellij.psi.search.UsageSearchContext
 import com.intellij.psi.util.PsiTreeUtil
-import com.intellij.psi.xml.XmlAttribute
 
 /** An `@event-name=${...}` binding in a Lit template. [range] is relative to the template and includes the `@`. */
 data class EventBinding(val eventName: String, val range: TextRange, val tagName: String)
@@ -119,18 +117,12 @@ object LitEvents {
     /** Places that listen to [eventName]: `@event-name=` template bindings and `addEventListener(...)` calls. */
     fun findListeners(project: Project, eventName: String): List<PsiElement> {
         val result = mutableListOf<PsiElement>()
-        val injectedManager = InjectedLanguageManager.getInstance(project)
         for (file in candidateFiles(project, listOf(eventName, ADD_LISTENER))) {
             for (template in PsiTreeUtil.findChildrenOfType(file, JSStringTemplateExpression::class.java)) {
                 if (!ScopedElements.isLitHtmlTemplate(template)) continue
                 for (binding in findEventBindings(template)) {
                     if (binding.eventName != eventName) continue
-                    val offset = template.textRange.startOffset + binding.range.startOffset
-                    val injected = injectedManager.findInjectedElementAt(file, offset)
-                    result += PsiTreeUtil.getParentOfType(injected, XmlAttribute::class.java, false)
-                        ?: injected
-                        ?: file.findElementAt(offset)
-                        ?: template
+                    result += TemplateLocation(template, binding.range)
                 }
             }
             for (call in PsiTreeUtil.findChildrenOfType(file, JSCallExpression::class.java)) {
@@ -143,7 +135,7 @@ object LitEvents {
     }
 
     /** JS/TS files of the project that contain any of [words]. */
-    private fun candidateFiles(project: Project, words: List<String>): Collection<PsiFile> {
+    internal fun candidateFiles(project: Project, words: List<String>): Collection<PsiFile> {
         val scope = GlobalSearchScope.projectScope(project)
         val helper = PsiSearchHelper.getInstance(project)
         val psiManager = PsiManager.getInstance(project)

@@ -23,6 +23,13 @@ Ou installe le zip (`build/distributions/`) dans ton WebStorm et ouvre ce dossie
 | `src/features/renderers.js` | sous-fonctions de rendu hors classe, appelées par MyApp et TeamPanel | `ui-tooltip` (manque dans les 2 classes, un quick fix par classe) | `<ui-button>`, `<user-card>`, `@user-selected` |
 | `src/features/edge-cases.js` | sans scoped elements, objet vide, balises globales, non vérifiés | `ui-button` (EmptyScoped), `sl-button` | — |
 
+### Depuis scopedElements vers les templates
+
+| Où cliquer (Cmd/Ctrl+Click) | Résultat |
+|---|---|
+| clé `'ui-button'` dans `scopedElements` de `src/my-app.js` | popup : le template de MyApp + `renderToolbar()` (renderers.js) |
+| clé `'ui-button'` dans `src/features/base-panel.js` | popup : 3 usages dans team-panel.js (TeamPanel via `...super`, SimplePanel par héritage) + renderers.js |
+
 ### Événements
 
 | Où cliquer (Cmd/Ctrl+Click) | Résultat |

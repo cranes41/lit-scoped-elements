@@ -109,6 +109,19 @@ class LitEventsTest : BasePlatformTestCase() {
         assertEquals("child-el.js", file.name)
     }
 
+    fun testGotoDeclarationActionOnDispatchLandsOnTheBinding() {
+        myFixture.addFileToProject("solo-emitter.js", "class Solo extends LitElement { f() { this.dispatchEvent(new CustomEvent('solo-event')); } }")
+        myFixture.addFileToProject("solo-listener.js", "class L extends LitElement { render() { return html`<div>\n  <span @solo-event=${"$"}{this.x}></span></div>`; } }")
+        myFixture.configureFromTempProjectFile("solo-emitter.js")
+        myFixture.editor.caretModel.moveToOffset(myFixture.file.text.indexOf("'solo-event'") + 3)
+        myFixture.performEditorAction("GotoDeclaration")
+        val editor = com.intellij.openapi.fileEditor.FileEditorManager.getInstance(project).selectedTextEditor!!
+        val file = com.intellij.psi.PsiDocumentManager.getInstance(project).getPsiFile(editor.document)!!
+        assertEquals("solo-listener.js", file.name)
+        val after = file.text.substring(editor.caretModel.offset)
+        assertTrue(after.take(30), after.startsWith("@solo-event="))
+    }
+
     // ------------------------------------------------------------- helpers
 
     /** Runs the handler on both the host element and the injected HTML element at `marker + delta`. */

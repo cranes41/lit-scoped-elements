@@ -8,6 +8,12 @@ WebStorm support for [Open WC scoped elements](https://open-wc.org/docs/developm
 `` html`...` `` template opens the class registered for that tag in `scopedElements`. This works on both
 opening and closing tags and follows imports.
 
+**Go to the templates**: Cmd/Ctrl+Click on a tag name key in `scopedElements` (`'my-button': MyButton`)
+lists where `<my-button>` is used in the templates this declaration applies to. That includes the class itself,
+subclasses that inherit it or spread `...super.scopedElements`, classes spreading a shared object that contains
+it, and the sub render functions those classes call. Another class declaring its own `'my-button'` entry is not
+included. Cmd+Click on the value (`MyButton`) still goes to the class.
+
 **Event navigation**
 - Cmd/Ctrl+Click on `@my-event` in an `` html`...` `` template lists where the event is fired
   (`new CustomEvent('my-event')`, `new Event('my-event')`). When the tag maps to a known class (through
