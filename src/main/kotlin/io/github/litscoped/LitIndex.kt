@@ -4,6 +4,7 @@ import com.intellij.openapi.fileTypes.LanguageFileType
 import com.intellij.lang.javascript.JavascriptLanguage
 import com.intellij.lang.javascript.psi.JSCallExpression
 import com.intellij.lang.javascript.psi.JSLiteralExpression
+import com.intellij.lang.javascript.psi.JSProperty
 import com.intellij.lang.javascript.psi.JSReferenceExpression
 import com.intellij.lang.javascript.psi.ecma6.JSStringTemplateExpression
 import com.intellij.lang.javascript.psi.ecmal4.JSSuperExpression
@@ -26,6 +27,7 @@ import com.intellij.util.io.KeyDescriptor
  * - `bind:<event>` an `@event` binding in a Lit template
  * - `str:<value>`  an event-name-like string literal passed as first argument of a call or `new`
  *                  (`new CustomEvent('x')`, `addEventListener('x')`, `super('x')`, `customElements.define('x', …)`)
+ * - `reg:<name>`   an object key named like a custom element (`{ 'x-el': XEl }`), maybe a scopedElements entry
  * - `dyn`          an event-related call whose first argument is not a literal (`new Event(PANEL_CLOSE)`),
  *                  so the name can only be known by resolving it
  *
@@ -35,7 +37,7 @@ class LitIndex : ScalarIndexExtension<String>() {
 
     override fun getName(): ID<String, Void> = NAME
 
-    override fun getVersion(): Int = 2
+    override fun getVersion(): Int = 3
 
     override fun dependsOnFileContent(): Boolean = true
 
@@ -57,6 +59,7 @@ class LitIndex : ScalarIndexExtension<String>() {
         fun tag(name: String) = "tag:$name"
         fun binding(event: String) = "bind:$event"
         fun string(value: String) = "str:$value"
+        fun registration(tagName: String) = "reg:$tagName"
 
         private val EVENT_NAME_LIKE = Regex("""[A-Za-z_$][\w$:.\-]{0,63}""")
         private val EVENT_RELATED_CALLEE = Regex("""(?i).*(event|fire|emit|dispatch|listen).*""")
@@ -71,6 +74,7 @@ class LitIndex : ScalarIndexExtension<String>() {
                             LitEvents.computeEventBindings(element).forEach { keys += binding(it.eventName) }
                         }
                         is JSCallExpression -> indexCall(element, keys)
+                        is JSProperty -> element.name?.takeIf(ScopedElements::isCustomElementName)?.let { keys += registration(it) }
                     }
                     super.visitElement(element)
                 }

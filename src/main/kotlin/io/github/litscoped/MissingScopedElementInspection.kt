@@ -56,9 +56,10 @@ class MissingScopedElementInspection : LocalInspectionTool() {
                     if (ignoreGlobalElements && GlobalElements.isDefinedGlobally(element.project, tag.name)) continue
 
                     val qualify = owners.size > 1 || missingIn.single() != enclosing
+                    val elementClass by lazy { ElementClassFinder.find(element.project, tag.name)?.let(SmartPointerManager::createPointer) }
                     val fixes = missingIn.mapNotNull { cls ->
                         ScopedElements.findOwnObjectLiteral(cls)?.let { literal ->
-                            AddToScopedElementsFix(tag.name, cls.name.takeIf { qualify }, SmartPointerManager.createPointer(literal))
+                            AddToScopedElementsFix(tag.name, cls.name.takeIf { qualify }, SmartPointerManager.createPointer(literal), elementClass)
                         }
                     }
                     val where = missingIn.joinToString(", ") { "${it.name ?: "the class"}.scopedElements" }
