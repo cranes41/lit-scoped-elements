@@ -4,61 +4,74 @@ WebStorm support for [Open WC scoped elements](https://open-wc.org/docs/developm
 
 ## Features
 
-**Go to the element class**: Cmd/Ctrl+Click (or *Go to Declaration*) on a custom element tag in an
-`` html`...` `` template opens the class registered for that tag in `scopedElements`. This works on both
-opening and closing tags and follows imports.
-
-**Go to the templates**: Cmd/Ctrl+Click on a tag name key in `scopedElements` (`'my-button': MyButton`)
-lists where `<my-button>` is used in the templates this declaration applies to. That includes the class itself,
-subclasses that inherit it or spread `...super.scopedElements`, classes spreading a shared object that contains
-it, and the sub render functions those classes call. Another class declaring its own `'my-button'` entry is not
-included. Cmd+Click on the value (`MyButton`) still goes to the class.
-
-**Event navigation**
-- Cmd/Ctrl+Click on `@my-event` in an `` html`...` `` template lists where the event is fired
-  (`new CustomEvent('my-event')`, `new Event('my-event')`). When the tag maps to a known class (through
-  `scopedElements`), only that class's dispatches (and its super classes') are shown. If it fires nothing,
-  every dispatch in the project is listed, since the event may bubble up from a child.
-- Cmd/Ctrl+Click on `'my-event'` in `new CustomEvent('my-event')` lists who listens: `@my-event=` bindings
-  in templates and `addEventListener('my-event', ...)` calls.
-- Cmd/Ctrl+Click on `'my-event'` in `addEventListener('my-event', ...)` lists where it is fired.
-- Event names held in a constant (`new Event(PANEL_CLOSE)`, `const PANEL_CLOSE = 'panel-close'`) are resolved.
-- Events with no dispatch in the project, such as `@click`, keep WebStorm's default navigation.
-
-**Sub render functions**: templates written outside the class are supported too: a function such as
-`function renderToolbar() { return html`...` }` or `const renderRow = (x) => html`...``, or a variable holding a
-template. The plugin finds the classes that call them, directly or through other functions and in any file of the
-project, and uses *their* `scopedElements` for navigation, event narrowing and the inspection. A function used by
-several components must have its tags declared in each of them. The warning names the classes that are missing a
-tag, with one quick fix per class. A function that no class uses is not checked.
-
-**Inspection: "Custom element is not declared in scopedElements"**: checks every `` html`...` `` template in
-the class (`render()` and helper methods) and reports custom elements missing from `scopedElements`.
-The quick fix (Alt+Enter) adds `'my-tag': MyTag` to the declaration.
-
 ```js
 class MyCard extends ScopedElementsMixin(LitElement) {
-  static scopedElements = { 'my-button': MyButton };
+  static scopedElements = { 'my-button': MyButton };   // Cmd+Click / Alt+F7 / Shift+F6 on the key
 
   render() {
     return html`
-      <my-button>OK</my-button>   <!-- Cmd+Click -> MyButton -->
-      <my-icon></my-icon>         <!-- warning: not declared in MyCard.scopedElements -->
+      <my-button @pressed=${this.onPress}>OK</my-button>   <!-- Cmd+Click: tag -> MyButton, @pressed -> dispatch -->
+      <my-icon></my-icon>                                  <!-- warning: not declared in MyCard.scopedElements -->
     `;
   }
 }
 ```
 
-The plugin understands:
-- `static scopedElements = {...}` and `static get scopedElements() { return {...}; }`
-- spreads: `...super.scopedElements`, `...OtherElement.scopedElements`, `...someConstObject`
-- inherited `scopedElements` when the subclass doesn't declare its own
-- JavaScript and TypeScript
+### Navigation
+- **Tag → class**: Cmd/Ctrl+Click on `<my-button>` or `</my-button>` in an `` html`...` `` template opens the class
+  registered in `scopedElements`. When no scoped registry has the tag, it opens the class registered globally with
+  `customElements.define('my-button', …)` or `@customElement('my-button')`.
+- **Key → templates**: Cmd/Ctrl+Click on a `scopedElements` key (`'my-button'`) lists the tags using it in the
+  templates that entry applies to. Cmd+Click on the value (`MyButton`) still goes to the class.
+- **Events**:
+  - `@my-event` in a template → where it is fired. When the tag's class is known, its own dispatches (and its super
+    classes') come first; otherwise every dispatch is listed, since events bubble.
+  - the name in a dispatch → who listens (`@my-event` bindings and `addEventListener('my-event')`).
+  - the name in `addEventListener('my-event')` → where it is fired.
+- **Gutter icons** for the same links: on `scopedElements` keys, dispatch names, `addEventListener` names and
+  `@event` attributes.
+- **Hover** on a tag shows the class it resolves to, its file, and where it is registered.
 
-Only classes that declare `scopedElements` or apply `ScopedElementsMixin` (directly or through a super class)
-are checked. Interpolations (`${...}`) and HTML comments in templates are ignored. To skip globally registered
-elements, add regular expressions under *Settings → Editor → Inspections → JavaScript and TypeScript →
-Lit / Open WC → Ignored tag names*.
+### Refactoring
+- **Find Usages** (Alt+F7) on a `scopedElements` key lists the tags using it.
+- **Rename** (Shift+F6) a key renames the matching opening and closing tags in every template it applies to.
+
+### Completion
+- `<` in a template suggests the tags available in `scopedElements` (inherited and spread entries included).
+- `@` on an element suggests the events its class fires.
+
+### Inspections (Settings → Editor → Inspections → JavaScript and TypeScript → Lit / Open WC)
+- **Custom element is not declared in scopedElements**: the quick fix adds the entry with the real class (one
+  registered elsewhere for that tag, a global definition, or a class named after the tag) and imports it.
+  Globally defined elements are skipped unless you turn that option off. You can also ignore tag names by regex.
+- **Unused scopedElements entry**: greys out entries no template uses, with a quick fix to remove them.
+- **Event listened to but never fired** (weak warning): an `@my-event` binding that nothing in the project fires,
+  often a typo. DOM events (`click`, `input`, …) are never reported.
+- **Event fired but never listened to** (off by default).
+
+### What the plugin understands
+- `static scopedElements = {...}` and `static get scopedElements() { return {...}; }`, including getters with
+  several `return` branches (each branch is a possible registry).
+- Spreads: `...super.scopedElements`, `...OtherElement.scopedElements`, `...sharedConstObject`.
+- Inheritance, including through mixins (`class A extends SomeMixin(Base)`). A template in `Base.render()` also
+  belongs to subclasses that don't redefine `render()` or call `super.render()`, with *their* `scopedElements`.
+- **Sub render functions**: a template in a function or variable outside the class
+  (`function renderRow() { return html`...` }`) belongs to every class calling it, directly or through other
+  functions, in any file. A function no class calls is not checked.
+- Ways to fire an event: `new CustomEvent('x')` / `new Event('x')` (string, `` `template` `` or constant), helper
+  calls such as `this.fire('x')`, and `Event` subclasses passing the name to `super('x')` (fired where they are
+  instantiated).
+- JavaScript and TypeScript. Interpolations (`${...}`) and HTML comments in templates are ignored.
+
+### Settings (Settings → Languages & Frameworks → Lit Scoped Elements)
+- **Event helper functions**: functions whose first argument is a fired event's name (default `fire`, `emit`).
+- **Search libraries**: also search `node_modules` for dispatches and global element definitions.
+
+### Limits
+- Tags built at runtime (`unsafeStatic`) aren't seen.
+- A mixin applied through a variable (`const Mixed = M(Base); class A extends Mixed {}`) isn't followed.
+- A helper called with a constant event name is only found if its name contains `event`, `fire`, `emit`,
+  `dispatch` or `listen`.
 
 ## Build
 

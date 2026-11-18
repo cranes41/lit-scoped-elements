@@ -5,22 +5,21 @@
 
     <description><![CDATA[
     Support for <a href="https://open-wc.org/docs/development/scoped-elements/">Open WC scoped elements</a>
-    in <a href="https://lit.dev">Lit</a> components:
+    and events in <a href="https://lit.dev">Lit</a> components.
     <ul>
-      <li><b>Navigation</b>: Ctrl/Cmd+Click (Go to Declaration) on a custom element tag in an
-          <code>html`...`</code> template opens the class registered for it in <code>scopedElements</code>.</li>
-      <li><b>Usages</b>: Ctrl/Cmd+Click on a tag name key of <code>scopedElements</code> lists where that element
-          is used in the templates the declaration applies to.</li>
-      <li><b>Events</b>: Ctrl/Cmd+Click on <code>@my-event</code> in a template shows where the event is fired
-          (<code>new CustomEvent('my-event')</code>); Ctrl/Cmd+Click on the event name in
-          <code>new CustomEvent('my-event')</code> shows who listens to it (<code>@my-event</code> bindings and
-          <code>addEventListener</code>).</li>
-      <li><b>Inspection</b>: reports custom elements used in templates that are missing from
-          <code>scopedElements</code>, with a quick fix to add them.</li>
+      <li><b>Navigation</b>: from a tag in an <code>html`...`</code> template to the class registered in
+          <code>scopedElements</code> (or globally), from a <code>scopedElements</code> key to the templates using it,
+          and between <code>@my-event</code> bindings, <code>addEventListener</code> and the code firing the event.
+          Gutter icons for the same links.</li>
+      <li><b>Find Usages and Rename</b> of <code>scopedElements</code> keys, updating the tags in templates.</li>
+      <li><b>Completion</b> of scoped tag names and of the events an element fires.</li>
+      <li><b>Hover</b> on a tag: the class it resolves to and where it is registered.</li>
+      <li><b>Inspections</b>: elements missing from <code>scopedElements</code> (quick fix adds the entry and the
+          import), unused entries, events listened to but never fired, events fired but never listened to.</li>
     </ul>
-    Supports the <code>static scopedElements = {...}</code> field and the
-    <code>static get scopedElements()</code> getter, spreads such as <code>...super.scopedElements</code>,
-    and inheritance.
+    Understands field and getter declarations, spreads, inheritance (mixins included), templates rendered by
+    functions outside the class, <code>customElements.define</code> / <code>@customElement</code>, event helper
+    calls and <code>Event</code> subclasses, in JavaScript and TypeScript.
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>
