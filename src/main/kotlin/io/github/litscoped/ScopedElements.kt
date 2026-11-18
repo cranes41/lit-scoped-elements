@@ -48,10 +48,14 @@ object ScopedElements {
     private val TEMPLATE_TAGS = setOf("html", "staticHtml")
 
     // Valid custom element names start with a lowercase ASCII letter and contain a hyphen.
-    private val TAG_REGEX = Regex("""<(/?)([a-z][a-z0-9._]*-[a-z0-9._\-]*)(?=[\s/>]|$)""")
+    private const val CUSTOM_ELEMENT_NAME = """[a-z][a-z0-9._]*-[a-z0-9._\-]*"""
+    private val CUSTOM_ELEMENT_NAME_REGEX = Regex(CUSTOM_ELEMENT_NAME)
+    private val TAG_REGEX = Regex("""<(/?)($CUSTOM_ELEMENT_NAME)(?=[\s/>]|$)""")
     private val COMMENT_REGEX = Regex("""<!--.*?-->""", RegexOption.DOT_MATCHES_ALL)
 
     // ---------------------------------------------------------------- templates
+
+    fun isCustomElementName(name: String): Boolean = CUSTOM_ELEMENT_NAME_REGEX.matches(name)
 
     /** True for `html`...``, `staticHtml`...`` and qualified forms such as `lit.html`...``. */
     fun isLitHtmlTemplate(template: JSStringTemplateExpression): Boolean {

@@ -4,7 +4,6 @@ import com.intellij.lang.javascript.psi.JSArgumentList
 import com.intellij.lang.javascript.psi.JSCallExpression
 import com.intellij.lang.javascript.psi.JSExpression
 import com.intellij.lang.javascript.psi.JSField
-import com.intellij.lang.javascript.psi.JSFile
 import com.intellij.lang.javascript.psi.JSLiteralExpression
 import com.intellij.lang.javascript.psi.JSNewExpression
 import com.intellij.lang.javascript.psi.JSReferenceExpression
@@ -14,11 +13,6 @@ import com.intellij.lang.javascript.psi.ecmal4.JSClass
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiFile
-import com.intellij.psi.PsiManager
-import com.intellij.psi.search.GlobalSearchScope
-import com.intellij.psi.search.PsiSearchHelper
-import com.intellij.psi.search.UsageSearchContext
 import com.intellij.psi.util.PsiTreeUtil
 
 /** An `@event-name=${...}` binding in a Lit template. [range] is relative to the template and includes the `@`. */
@@ -97,7 +91,7 @@ object LitEvents {
      */
     fun findDispatches(project: Project, eventName: String, listenerTagClasses: Collection<JSClass> = emptyList()): List<PsiElement> {
         val all = mutableListOf<Pair<PsiElement, JSClass?>>()
-        for (file in candidateFiles(project, listOf(eventName) + EVENT_CONSTRUCTORS)) {
+        for (file in ProjectSearch.candidateJsFiles(project, listOf(eventName) + EVENT_CONSTRUCTORS)) {
             for (call in PsiTreeUtil.findChildrenOfType(file, JSNewExpression::class.java)) {
                 if (calleeName(call) !in EVENT_CONSTRUCTORS) continue
                 val argument = call.arguments.firstOrNull() ?: continue
@@ -117,7 +111,7 @@ object LitEvents {
     /** Places that listen to [eventName]: `@event-name=` template bindings and `addEventListener(...)` calls. */
     fun findListeners(project: Project, eventName: String): List<PsiElement> {
         val result = mutableListOf<PsiElement>()
-        for (file in candidateFiles(project, listOf(eventName, ADD_LISTENER))) {
+        for (file in ProjectSearch.candidateJsFiles(project, listOf(eventName, ADD_LISTENER))) {
             for (template in PsiTreeUtil.findChildrenOfType(file, JSStringTemplateExpression::class.java)) {
                 if (!ScopedElements.isLitHtmlTemplate(template)) continue
                 for (binding in findEventBindings(template)) {
@@ -132,21 +126,6 @@ object LitEvents {
             }
         }
         return result
-    }
-
-    /** JS/TS files of the project that contain any of [words]. */
-    internal fun candidateFiles(project: Project, words: List<String>): Collection<PsiFile> {
-        val scope = GlobalSearchScope.projectScope(project)
-        val helper = PsiSearchHelper.getInstance(project)
-        val psiManager = PsiManager.getInstance(project)
-        val files = LinkedHashSet<PsiFile>()
-        for (word in words.distinct()) {
-            helper.processCandidateFilesForText(scope, UsageSearchContext.ANY, true, word) { virtualFile ->
-                (psiManager.findFile(virtualFile) as? JSFile)?.let(files::add)
-                true
-            }
-        }
-        return files
     }
 
     private fun classHierarchy(cls: JSClass): Set<JSClass> {

@@ -24,20 +24,18 @@ class ScopedElementUsagesGotoHandler : GotoDeclarationHandler {
         val nameElement = property.nameIdentifier ?: return null
         if (!nameElement.textRange.contains(sourceElement.textRange)) return null
         val tagName = property.name ?: return null
-        if (!CUSTOM_ELEMENT_NAME.matches(tagName)) return null
+        if (!ScopedElements.isCustomElementName(tagName)) return null
 
         val usages = findTagUsages(property, tagName)
         return if (usages.isEmpty()) null else usages.toTypedArray()
     }
 
     companion object {
-        private val CUSTOM_ELEMENT_NAME = Regex("""[a-z][a-z0-9._]*-[a-z0-9._\-]*""")
-
         /** Opening `<tagName>` tags in Lit templates whose `scopedElements` resolve [tagName] to [property]. */
         fun findTagUsages(property: JSProperty, tagName: String): List<PsiElement> {
             val project = property.project
             val result = mutableListOf<PsiElement>()
-            for (file in LitEvents.candidateFiles(project, listOf(tagName))) {
+            for (file in ProjectSearch.candidateJsFiles(project, listOf(tagName))) {
                 for (template in PsiTreeUtil.findChildrenOfType(file, JSStringTemplateExpression::class.java)) {
                     if (!ScopedElements.isLitHtmlTemplate(template)) continue
                     val tags = ScopedElements.findCustomElementTags(template).filter { !it.closing && it.name == tagName }
