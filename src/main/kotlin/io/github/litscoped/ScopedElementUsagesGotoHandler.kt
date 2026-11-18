@@ -1,5 +1,6 @@
 package io.github.litscoped
 
+import com.intellij.openapi.progress.ProgressManager
 import com.intellij.codeInsight.navigation.actions.GotoDeclarationHandler
 import com.intellij.lang.javascript.psi.JSObjectLiteralExpression
 import com.intellij.lang.javascript.psi.JSProperty
@@ -40,6 +41,7 @@ class ScopedElementUsagesGotoHandler : GotoDeclarationHandler {
             val result = mutableListOf<PsiElement>()
             for (file in ProjectSearch.candidateJsFiles(project, listOf(tagName))) {
                 for (template in PsiTreeUtil.findChildrenOfType(file, JSStringTemplateExpression::class.java)) {
+                    ProgressManager.checkCanceled()
                     if (!ScopedElements.isLitHtmlTemplate(template)) continue
                     val tags = ScopedElements.findCustomElementTags(template).filter { !it.closing && it.name == tagName }
                     if (tags.isEmpty()) continue

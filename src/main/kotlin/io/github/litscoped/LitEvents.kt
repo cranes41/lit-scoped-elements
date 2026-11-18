@@ -1,5 +1,6 @@
 package io.github.litscoped
 
+import com.intellij.openapi.progress.ProgressManager
 import com.intellij.lang.javascript.psi.JSArgumentList
 import com.intellij.lang.javascript.psi.JSCallExpression
 import com.intellij.lang.javascript.psi.JSExpression
@@ -111,6 +112,7 @@ object LitEvents {
     fun findDispatches(project: Project, eventName: String, listenerTagClasses: Collection<JSClass> = emptyList()): List<PsiElement> {
         val all = mutableListOf<Pair<PsiElement, JSClass?>>()
         for (file in ProjectSearch.candidateJsFiles(project, listOf(eventName) + EVENT_CONSTRUCTORS)) {
+            ProgressManager.checkCanceled()
             for (call in PsiTreeUtil.findChildrenOfType(file, JSNewExpression::class.java)) {
                 if (calleeName(call) !in EVENT_CONSTRUCTORS) continue
                 val argument = call.arguments.firstOrNull() ?: continue
@@ -131,6 +133,7 @@ object LitEvents {
     fun findListeners(project: Project, eventName: String): List<PsiElement> {
         val result = mutableListOf<PsiElement>()
         for (file in ProjectSearch.candidateJsFiles(project, listOf(eventName, ADD_LISTENER))) {
+            ProgressManager.checkCanceled()
             for (template in PsiTreeUtil.findChildrenOfType(file, JSStringTemplateExpression::class.java)) {
                 if (!ScopedElements.isLitHtmlTemplate(template)) continue
                 for (binding in findEventBindings(template)) {

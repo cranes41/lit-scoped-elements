@@ -1,5 +1,6 @@
 package io.github.litscoped
 
+import com.intellij.openapi.progress.ProgressManager
 import com.intellij.lang.ecmascript6.psi.ES6ImportedBinding
 import com.intellij.lang.javascript.psi.JSArgumentList
 import com.intellij.lang.javascript.psi.JSCallExpression
@@ -163,6 +164,7 @@ object ScopedElements {
 
         val scope = GlobalSearchScope.projectScope(literal.project)
         val spreadIntoScopedElements = !ReferencesSearch.search(variable, scope).forEach(Processor { reference ->
+            ProgressManager.checkCanceled()
             val spread = reference.element.parent as? JSSpreadExpression
             val outer = spread?.parent as? JSObjectLiteralExpression
             outer == null || !isScopedElementsObject(outer, depth + 1) // false stops the search: found
@@ -189,6 +191,7 @@ object ScopedElements {
     }
 
     private fun collect(cls: JSClass, visited: MutableSet<JSClass>, depth: Int): Map<String, List<ScopedElementEntry>> {
+        ProgressManager.checkCanceled()
         if (depth > MAX_DEPTH || !visited.add(cls)) return emptyMap()
         val result = LinkedHashMap<String, List<ScopedElementEntry>>()
         val expressions = findDeclarationExpressions(cls)

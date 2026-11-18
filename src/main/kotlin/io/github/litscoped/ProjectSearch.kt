@@ -1,5 +1,6 @@
 package io.github.litscoped
 
+import com.intellij.openapi.progress.ProgressManager
 import com.intellij.lang.javascript.psi.JSFile
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiFile
@@ -19,6 +20,7 @@ object ProjectSearch {
         val files = LinkedHashSet<PsiFile>()
         for (word in words.distinct()) {
             helper.processCandidateFilesForText(scope, UsageSearchContext.ANY, true, word) { virtualFile ->
+                ProgressManager.checkCanceled()
                 (psiManager.findFile(virtualFile) as? JSFile)?.let(files::add)
                 true
             }

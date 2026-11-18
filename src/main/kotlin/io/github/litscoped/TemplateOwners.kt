@@ -1,5 +1,6 @@
 package io.github.litscoped
 
+import com.intellij.openapi.progress.ProgressManager
 import com.intellij.lang.javascript.psi.JSField
 import com.intellij.lang.javascript.psi.JSFunction
 import com.intellij.lang.javascript.psi.JSReferenceExpression
@@ -54,6 +55,7 @@ object TemplateOwners {
 
         val result = LinkedHashSet<JSClass>()
         for (reference in ReferencesSearch.search(holder, GlobalSearchScope.projectScope(holder.project)).findAll()) {
+            ProgressManager.checkCanceled()
             result += compute(reference.element, visited, depth + 1)
         }
         return result
@@ -69,6 +71,7 @@ object TemplateOwners {
         val queue = ArrayDeque(listOf(cls))
         val scope = GlobalSearchScope.projectScope(cls.project)
         while (queue.isNotEmpty() && result.size < MAX_SUBCLASSES) {
+            ProgressManager.checkCanceled()
             val current = queue.removeFirst()
             for (subclass in directSubclasses(current, scope)) {
                 if (subclass in result) continue
