@@ -1,6 +1,10 @@
 package io.github.litscoped
 
+import com.intellij.lang.javascript.psi.JSField
 import com.intellij.lang.javascript.psi.JSFunction
+import com.intellij.lang.javascript.psi.JSReferenceExpression
+import com.intellij.lang.javascript.psi.ecmal4.JSSuperExpression
+import com.intellij.lang.javascript.search.JSClassSearch
 import com.intellij.lang.javascript.psi.JSFunctionExpression
 import com.intellij.lang.javascript.psi.JSVariable
 import com.intellij.lang.javascript.psi.ecma6.JSStringTemplateExpression
@@ -18,7 +22,9 @@ import com.intellij.psi.util.PsiTreeUtil
 /**
  * Finds the component classes whose `scopedElements` apply to a template.
  *
- * - A template written inside a class (render(), helper methods, arrow callbacks) belongs to that class.
+ * - A template written inside a class (render(), helper methods, arrow callbacks) belongs to that class, and to
+ *   its subclasses that use the method holding it: subclasses that don't redefine the method, or whose override
+ *   calls `super.method()`. Each of those renders the template with its own `scopedElements`.
  * - A template written in a function or variable outside any class ("sub render function") belongs to every
  *   class that uses it, directly or through other functions, in any file of the project:
  *
@@ -32,16 +38,16 @@ import com.intellij.psi.util.PsiTreeUtil
  */
 object TemplateOwners {
     private const val MAX_DEPTH = 8
+    private const val MAX_SUBCLASSES = 64
 
     fun findOwnerClasses(template: JSStringTemplateExpression): List<JSClass> {
-        PsiTreeUtil.getParentOfType(template, JSClass::class.java)?.let { return listOf(it) }
         return CachedValuesManager.getCachedValue(template) {
             CachedValueProvider.Result.create(compute(template, HashSet(), 0).toList(), PsiModificationTracker.MODIFICATION_COUNT)
         }
     }
 
     private fun compute(element: PsiElement, visited: MutableSet<PsiElement>, depth: Int): Set<JSClass> {
-        PsiTreeUtil.getParentOfType(element, JSClass::class.java, false)?.let { return setOf(it) }
+        PsiTreeUtil.getParentOfType(element, JSClass::class.java, false)?.let { return classAndInheritingSubclasses(it, element) }
         if (depth > MAX_DEPTH) return emptySet()
         val holder = findNamedHolder(element) ?: return emptySet()
         if (!visited.add(holder)) return emptySet()
@@ -52,6 +58,47 @@ object TemplateOwners {
         }
         return result
     }
+
+    /**
+     * [cls] plus its subclasses (transitively, in the project) that run the class member containing [element]:
+     * they don't declare a member with the same name, or their override calls `super.<name>`.
+     */
+    private fun classAndInheritingSubclasses(cls: JSClass, element: PsiElement): Set<JSClass> {
+        val memberName = enclosingMember(cls, element)?.name ?: return setOf(cls)
+        val result = linkedSetOf(cls)
+        val queue = ArrayDeque(listOf(cls))
+        val scope = GlobalSearchScope.projectScope(cls.project)
+        while (queue.isNotEmpty() && result.size < MAX_SUBCLASSES) {
+            val current = queue.removeFirst()
+            for (subclass in JSClassSearch.searchClassInheritors(current, false, scope).findAll()) {
+                if (subclass in result) continue
+                val override = ownMember(subclass, memberName)
+                if (override == null || callsSuper(override, memberName)) {
+                    result += subclass
+                    queue += subclass
+                }
+            }
+        }
+        return result
+    }
+
+    /** The outermost method or field of [cls] containing [element] (arrow callbacks inside it are skipped). */
+    private fun enclosingMember(cls: JSClass, element: PsiElement): PsiNamedElement? {
+        var member: PsiNamedElement? = null
+        var current: PsiElement? = element
+        while (current != null && current != cls) {
+            if (current is JSFunction || current is JSField) member = current as PsiNamedElement
+            current = current.parent
+        }
+        return member
+    }
+
+    private fun ownMember(cls: JSClass, name: String): PsiElement? =
+        cls.functions.firstOrNull { it.name == name && !it.isSetProperty } ?: cls.fields.firstOrNull { it.name == name }
+
+    private fun callsSuper(member: PsiElement, name: String): Boolean =
+        PsiTreeUtil.findChildrenOfType(member, JSReferenceExpression::class.java)
+            .any { it.referencedName == name && it.qualifier is JSSuperExpression }
 
     /**
      * The closest named declaration that contains [element] and can be referenced elsewhere:
