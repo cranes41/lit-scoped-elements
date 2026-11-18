@@ -20,11 +20,14 @@ class ScopedElementUsagesGotoHandler : GotoDeclarationHandler {
     override fun getGotoDeclarationTargets(sourceElement: PsiElement?, offset: Int, editor: Editor?): Array<PsiElement>? {
         if (sourceElement == null) return null
         val property = PsiTreeUtil.getParentOfType(sourceElement, JSProperty::class.java, false) ?: return null
-        if (property.parent !is JSObjectLiteralExpression) return null
+        val literal = property.parent as? JSObjectLiteralExpression ?: return null
         val nameElement = property.nameIdentifier ?: return null
         if (!nameElement.textRange.contains(sourceElement.textRange)) return null
         val tagName = property.name ?: return null
         if (!ScopedElements.isCustomElementName(tagName)) return null
+        // Runs on Cmd+hover: bail out before any project search for objects that aren't scoped elements,
+        // e.g. { 'content-type': ... } or i18n keys.
+        if (!ScopedElements.isScopedElementsObject(literal)) return null
 
         val usages = findTagUsages(property, tagName)
         return if (usages.isEmpty()) null else usages.toTypedArray()

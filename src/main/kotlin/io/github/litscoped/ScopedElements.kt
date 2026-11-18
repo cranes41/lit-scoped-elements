@@ -16,7 +16,10 @@ import com.intellij.lang.javascript.psi.ecma6.JSStringTemplateExpression
 import com.intellij.lang.javascript.psi.ecmal4.JSClass
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiElement
+import com.intellij.psi.search.GlobalSearchScope
+import com.intellij.psi.search.searches.ReferencesSearch
 import com.intellij.psi.util.CachedValueProvider
+import com.intellij.util.Processor
 import com.intellij.psi.util.CachedValuesManager
 import com.intellij.psi.util.PsiModificationTracker
 import com.intellij.psi.util.PsiTreeUtil
@@ -44,6 +47,7 @@ object ScopedElements {
     const val MEMBER_NAME = "scopedElements"
     private const val MIXIN_NAME = "ScopedElementsMixin"
     private const val MAX_DEPTH = 16
+    private const val MAX_SPREAD_DEPTH = 4
 
     private val TEMPLATE_TAGS = setOf("html", "staticHtml")
 
@@ -128,6 +132,32 @@ object ScopedElements {
     }
 
     /** The object literal written directly in [cls]'s own `scopedElements` declaration, if any. */
+    /**
+     * True when [literal] defines scoped elements: it is the `scopedElements` declaration of its class (field or
+     * getter return value), or an object held in a variable that is spread into such a declaration
+     * (`const shared = {...}` + `...shared`), possibly through other spread objects.
+     *
+     * Cheap for unrelated objects: a reference search only runs for objects assigned to a variable.
+     */
+    fun isScopedElementsObject(literal: JSObjectLiteralExpression, depth: Int = 0): Boolean {
+        if (depth > MAX_SPREAD_DEPTH) return false
+        val cls = PsiTreeUtil.getParentOfType(literal, JSClass::class.java)
+        if (cls != null && findDeclarationExpressions(cls).any { unwrap(it) == literal }) return true
+
+        var holder = literal.parent
+        while (holder is JSParenthesizedExpression) holder = holder.parent
+        val variable = holder as? JSVariable ?: return false
+        if (unwrap(variable.initializer) != literal) return false
+
+        val scope = GlobalSearchScope.projectScope(literal.project)
+        val spreadIntoScopedElements = !ReferencesSearch.search(variable, scope).forEach(Processor { reference ->
+            val spread = reference.element.parent as? JSSpreadExpression
+            val outer = spread?.parent as? JSObjectLiteralExpression
+            outer == null || !isScopedElementsObject(outer, depth + 1) // false stops the search: found
+        })
+        return spreadIntoScopedElements
+    }
+
     fun findOwnObjectLiteral(cls: JSClass): JSObjectLiteralExpression? =
         findDeclarationExpressions(cls).map(::unwrap).filterIsInstance<JSObjectLiteralExpression>().firstOrNull()
 

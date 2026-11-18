@@ -77,6 +77,47 @@ class ScopedElementUsagesTest : BasePlatformTestCase() {
         assertEquals(listOf("shared"), usageIds("shared.js", "'child-el'"))
     }
 
+    fun testOnlyScopedElementsObjectsAreConsidered() {
+        myFixture.addFileToProject(
+            "nested-shared.js",
+            """
+            import { shared } from './shared.js';
+            export const moreShared = { ...shared, 'x-y': X };
+            export const notSpread = { 'x-z': X };
+            """.trimIndent(),
+        )
+        myFixture.addFileToProject(
+            "nested-user.js",
+            """
+            import { moreShared } from './nested-shared.js';
+            class NestedUser extends ScopedElementsMixin(LitElement) {
+              static get scopedElements() { return { ...moreShared }; }
+              send() { return fetch('/', { headers: { 'content-type': 'json' } }); }
+            }
+            const labels = { 'login-title': 'Login' };
+            """.trimIndent(),
+        )
+        fun isScoped(path: String, marker: String): Boolean {
+            val file = myFixture.configureFromTempProjectFile(path)
+            val element = file.findElementAt(file.text.indexOf(marker) + 1)!!
+            val literal = com.intellij.psi.util.PsiTreeUtil.getParentOfType(
+                element, com.intellij.lang.javascript.psi.JSObjectLiteralExpression::class.java,
+            )!!
+            return ScopedElements.isScopedElementsObject(literal)
+        }
+        assertTrue(isScoped("my-el.js", "'child-el': ChildEl };\n  render() { return html`<child-el id=\"render\""))
+        assertTrue("spread const", isScoped("shared.js", "'child-el'"))
+        assertTrue("spread through another spread object", isScoped("nested-shared.js", "'x-y'"))
+        assertFalse("const never spread", isScoped("nested-shared.js", "'x-z'"))
+        assertFalse("object inside a class method", isScoped("nested-user.js", "'content-type'"))
+        assertFalse("unrelated const", isScoped("nested-user.js", "'login-title'"))
+
+        // The handler gives up on such keys.
+        val file = myFixture.configureFromTempProjectFile("nested-user.js")
+        val offset = file.text.indexOf("'login-title'") + 2
+        assertNull(ScopedElementUsagesGotoHandler().getGotoDeclarationTargets(file.findElementAt(offset), offset, null))
+    }
+
     fun testOnlyKeyIsHandled() {
         myFixture.configureFromTempProjectFile("my-el.js")
         val text = myFixture.file.text
