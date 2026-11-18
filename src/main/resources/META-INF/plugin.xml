@@ -28,6 +28,8 @@
     <depends>JavaScript</depends>
 
     <extensions defaultExtensionNs="com.intellij">
+        <fileBasedIndex implementation="io.github.litscoped.LitIndex"/>
+
         <gotoDeclarationHandler order="first"
                                 implementation="io.github.litscoped.ScopedElementGotoDeclarationHandler"/>
         <gotoDeclarationHandler order="first"

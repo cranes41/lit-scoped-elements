@@ -50,7 +50,8 @@ object LitEvents {
             CachedValueProvider.Result.create(computeEventBindings(template), PsiModificationTracker.MODIFICATION_COUNT)
         }
 
-    private fun computeEventBindings(template: JSStringTemplateExpression): List<EventBinding> {
+    /** Uncached [findEventBindings], for the indexer (which must not use PSI caches). */
+    fun computeEventBindings(template: JSStringTemplateExpression): List<EventBinding> {
         val text = ScopedElements.literalText(template)
         val result = mutableListOf<EventBinding>()
         for (tag in TAG_WITH_ATTRIBUTES.findAll(text)) {
@@ -88,11 +89,19 @@ object LitEvents {
 
     private fun calleeName(call: JSCallExpression): String? = (call.methodExpression as? JSReferenceExpression)?.referencedName
 
+    /** The value of a string literal, including a template literal without `${...}`. No resolving. */
+    fun literalString(expression: JSExpression?): String? = when (expression) {
+        is JSStringTemplateExpression ->
+            if (expression.arguments.isEmpty()) expression.text.removeSurrounding("`") else null
+        is JSLiteralExpression -> if (expression.isQuotedLiteral) expression.stringValue else null
+        else -> null
+    }
+
     /** Evaluates an event name: a string literal, or a constant / static field initialized with one. */
     private fun evaluateName(expression: JSExpression?, depth: Int = 0): String? {
         if (expression == null || depth > MAX_DEPTH) return null
         return when (expression) {
-            is JSLiteralExpression -> expression.stringValue
+            is JSLiteralExpression -> literalString(expression)
             is JSReferenceExpression -> when (val resolved = ScopedElements.resolveDeep(expression)) {
                 is JSVariable -> evaluateName(resolved.initializer, depth + 1)
                 is JSField -> evaluateName(resolved.initializer, depth + 1)
@@ -110,8 +119,18 @@ object LitEvents {
      * any descendant, so all dispatches are returned when those classes fire nothing.
      */
     fun findDispatches(project: Project, eventName: String, listenerTagClasses: Collection<JSClass> = emptyList()): List<PsiElement> {
+        val all = ProjectSearch.cached(project, "dispatches:$eventName") { computeDispatches(project, eventName) }
+        if (listenerTagClasses.isNotEmpty()) {
+            val hierarchy = listenerTagClasses.flatMapTo(HashSet(), ::classHierarchy)
+            val own = all.filter { (_, cls) -> cls != null && cls in hierarchy }
+            if (own.isNotEmpty()) return own.map { it.first }
+        }
+        return all.map { it.first }
+    }
+
+    private fun computeDispatches(project: Project, eventName: String): List<Pair<PsiElement, JSClass?>> {
         val all = mutableListOf<Pair<PsiElement, JSClass?>>()
-        for (file in ProjectSearch.candidateJsFiles(project, listOf(eventName) + EVENT_CONSTRUCTORS)) {
+        for (file in ProjectSearch.filesWithAnyKey(project, listOf(LitIndex.string(eventName), LitIndex.DYNAMIC))) {
             ProgressManager.checkCanceled()
             for (call in PsiTreeUtil.findChildrenOfType(file, JSNewExpression::class.java)) {
                 if (calleeName(call) !in EVENT_CONSTRUCTORS) continue
@@ -121,18 +140,17 @@ object LitEvents {
                 }
             }
         }
-        if (listenerTagClasses.isNotEmpty()) {
-            val hierarchy = listenerTagClasses.flatMapTo(HashSet(), ::classHierarchy)
-            val own = all.filter { (_, cls) -> cls != null && cls in hierarchy }
-            if (own.isNotEmpty()) return own.map { it.first }
-        }
-        return all.map { it.first }
+        return all
     }
 
     /** Places that listen to [eventName]: `@event-name=` template bindings and `addEventListener(...)` calls. */
-    fun findListeners(project: Project, eventName: String): List<PsiElement> {
+    fun findListeners(project: Project, eventName: String): List<PsiElement> =
+        ProjectSearch.cached(project, "listeners:$eventName") { computeListeners(project, eventName) }
+
+    private fun computeListeners(project: Project, eventName: String): List<PsiElement> {
         val result = mutableListOf<PsiElement>()
-        for (file in ProjectSearch.candidateJsFiles(project, listOf(eventName, ADD_LISTENER))) {
+        val keys = listOf(LitIndex.binding(eventName), LitIndex.string(eventName), LitIndex.DYNAMIC)
+        for (file in ProjectSearch.filesWithAnyKey(project, keys)) {
             ProgressManager.checkCanceled()
             for (template in PsiTreeUtil.findChildrenOfType(file, JSStringTemplateExpression::class.java)) {
                 if (!ScopedElements.isLitHtmlTemplate(template)) continue

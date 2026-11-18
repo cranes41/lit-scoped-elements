@@ -7,6 +7,9 @@ import com.intellij.lang.javascript.psi.JSProperty
 import com.intellij.lang.javascript.psi.ecma6.JSStringTemplateExpression
 import com.intellij.openapi.editor.Editor
 import com.intellij.psi.PsiElement
+import com.intellij.psi.util.CachedValueProvider
+import com.intellij.psi.util.CachedValuesManager
+import com.intellij.psi.util.PsiModificationTracker
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.openapi.util.TextRange
 
@@ -36,10 +39,15 @@ class ScopedElementUsagesGotoHandler : GotoDeclarationHandler {
 
     companion object {
         /** Opening `<tagName>` tags in Lit templates whose `scopedElements` resolve [tagName] to [property]. */
-        fun findTagUsages(property: JSProperty, tagName: String): List<PsiElement> {
+        fun findTagUsages(property: JSProperty, tagName: String): List<PsiElement> =
+            CachedValuesManager.getCachedValue(property) {
+                CachedValueProvider.Result.create(computeTagUsages(property, tagName), PsiModificationTracker.MODIFICATION_COUNT)
+            }
+
+        private fun computeTagUsages(property: JSProperty, tagName: String): List<PsiElement> {
             val project = property.project
             val result = mutableListOf<PsiElement>()
-            for (file in ProjectSearch.candidateJsFiles(project, listOf(tagName))) {
+            for (file in ProjectSearch.filesWithAnyKey(project, listOf(LitIndex.tag(tagName)))) {
                 for (template in PsiTreeUtil.findChildrenOfType(file, JSStringTemplateExpression::class.java)) {
                     ProgressManager.checkCanceled()
                     if (!ScopedElements.isLitHtmlTemplate(template)) continue

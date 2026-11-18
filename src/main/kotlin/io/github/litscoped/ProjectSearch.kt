@@ -1,30 +1,49 @@
 package io.github.litscoped
 
 import com.intellij.openapi.progress.ProgressManager
-import com.intellij.lang.javascript.psi.JSFile
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Key
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiManager
 import com.intellij.psi.search.GlobalSearchScope
-import com.intellij.psi.search.PsiSearchHelper
-import com.intellij.psi.search.UsageSearchContext
+import com.intellij.psi.util.CachedValue
+import com.intellij.psi.util.CachedValueProvider
+import com.intellij.psi.util.CachedValuesManager
+import com.intellij.psi.util.PsiModificationTracker
+import com.intellij.util.indexing.FileBasedIndex
+import java.util.concurrent.ConcurrentHashMap
 
-/** Index-backed lookup of project JS/TS files, shared by the tag and event searches. */
+/** Index-backed lookup of JS/TS files, and a project-level cache for search results. */
 object ProjectSearch {
 
-    /** JS/TS files of the project (libraries excluded) that contain any of [words], per the word index. */
-    fun candidateJsFiles(project: Project, words: List<String>): Collection<PsiFile> {
-        val scope = GlobalSearchScope.projectScope(project)
-        val helper = PsiSearchHelper.getInstance(project)
+    fun scope(project: Project): GlobalSearchScope = GlobalSearchScope.projectScope(project)
+
+    /** JS/TS files in [scope] that have any of the [LitIndex] keys. */
+    fun filesWithAnyKey(project: Project, keys: Collection<String>): Collection<PsiFile> {
         val psiManager = PsiManager.getInstance(project)
         val files = LinkedHashSet<PsiFile>()
-        for (word in words.distinct()) {
-            helper.processCandidateFilesForText(scope, UsageSearchContext.ANY, true, word) { virtualFile ->
-                ProgressManager.checkCanceled()
-                (psiManager.findFile(virtualFile) as? JSFile)?.let(files::add)
-                true
-            }
+        FileBasedIndex.getInstance().processFilesContainingAnyKey(LitIndex.NAME, keys, scope(project), null, null) { virtualFile ->
+            ProgressManager.checkCanceled()
+            psiManager.findFile(virtualFile)?.let(files::add)
+            true
         }
         return files
+    }
+
+    private val CACHE_KEY = Key.create<CachedValue<ConcurrentHashMap<String, Any>>>("io.github.litscoped.searchCache")
+
+    /**
+     * Caches the result of [compute] under [key] until the next PSI change in the project. Results may hold
+     * PSI elements: they are dropped as soon as anything changes.
+     */
+    @Suppress("UNCHECKED_CAST")
+    fun <T : Any> cached(project: Project, key: String, compute: () -> T): T {
+        val cache = CachedValuesManager.getManager(project).getCachedValue(project, CACHE_KEY, {
+            CachedValueProvider.Result.create(ConcurrentHashMap<String, Any>(), PsiModificationTracker.MODIFICATION_COUNT)
+        }, false)
+        cache[key]?.let { return it as T }
+        val value = compute()
+        cache.putIfAbsent(key, value)
+        return value
     }
 }

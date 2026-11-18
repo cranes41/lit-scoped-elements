@@ -82,12 +82,15 @@ object ScopedElements {
      */
     fun findCustomElementTags(template: JSStringTemplateExpression): List<TagOccurrence> =
         CachedValuesManager.getCachedValue(template, TAGS_KEY) {
-            val tags = TAG_REGEX.findAll(literalText(template)).map { match ->
-                val group = match.groups[2]!!
-                TagOccurrence(group.value, TextRange(group.range.first, group.range.last + 1), match.groupValues[1] == "/")
-            }.toList()
-            CachedValueProvider.Result.create(tags, PsiModificationTracker.MODIFICATION_COUNT)
+            CachedValueProvider.Result.create(computeCustomElementTags(template), PsiModificationTracker.MODIFICATION_COUNT)
         }
+
+    /** Uncached [findCustomElementTags], for the indexer (which must not use PSI caches). */
+    fun computeCustomElementTags(template: JSStringTemplateExpression): List<TagOccurrence> =
+        TAG_REGEX.findAll(literalText(template)).map { match ->
+            val group = match.groups[2]!!
+            TagOccurrence(group.value, TextRange(group.range.first, group.range.last + 1), match.groupValues[1] == "/")
+        }.toList()
 
     /**
      * The text of [template] with interpolations (`${...}`) and HTML comments replaced by spaces,
