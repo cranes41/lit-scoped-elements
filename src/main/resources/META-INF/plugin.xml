@@ -29,6 +29,9 @@
 
     <extensions defaultExtensionNs="com.intellij">
         <fileBasedIndex implementation="io.github.litscoped.LitIndex"/>
+        <referencesSearch implementation="io.github.litscoped.ScopedTagReferenceSearcher"/>
+        <renamePsiElementProcessor order="first"
+                                   implementation="io.github.litscoped.ScopedElementKeyRenameProcessor"/>
         <projectConfigurable parentId="language"
                              instance="io.github.litscoped.LitSettingsConfigurable"
                              id="io.github.litscoped.settings"

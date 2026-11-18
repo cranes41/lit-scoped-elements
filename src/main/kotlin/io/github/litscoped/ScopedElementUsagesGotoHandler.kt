@@ -45,22 +45,12 @@ class ScopedElementUsagesGotoHandler : GotoDeclarationHandler {
             }
 
         private fun computeTagUsages(property: JSProperty, tagName: String): List<PsiElement> {
-            val project = property.project
             val result = mutableListOf<PsiElement>()
-            for (file in ProjectSearch.filesWithAnyKey(project, listOf(LitIndex.tag(tagName)))) {
-                for (template in PsiTreeUtil.findChildrenOfType(file, JSStringTemplateExpression::class.java)) {
-                    ProgressManager.checkCanceled()
-                    if (!ScopedElements.isLitHtmlTemplate(template)) continue
-                    val tags = ScopedElements.findCustomElementTags(template).filter { !it.closing && it.name == tagName }
-                    if (tags.isEmpty()) continue
-                    val applies = TemplateOwners.findOwnerClasses(template)
-                        .any { owner -> ScopedElements.getScopedElements(owner)[tagName].orEmpty().any { it.property == property } }
-                    if (!applies) continue
-                    for (tag in tags) {
-                        // Range from "<" to the end of the tag name.
-                        val tagStart = tag.range.startOffset - 1
-                        result += TemplateLocation(template, TextRange(tagStart, tag.range.endOffset), tagStart)
-                    }
+            TagUsages.forEach(property, tagName) { template, tag ->
+                if (!tag.closing) {
+                    // Range from "<" to the end of the tag name.
+                    val tagStart = tag.range.startOffset - 1
+                    result += TemplateLocation(template, TextRange(tagStart, tag.range.endOffset), tagStart)
                 }
             }
             return result
