@@ -15,8 +15,11 @@ import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiElement
 import com.intellij.psi.util.PsiTreeUtil
 
-/** An `@event-name=${...}` binding in a Lit template. [range] is relative to the template and includes the `@`. */
-data class EventBinding(val eventName: String, val range: TextRange, val tagName: String)
+/**
+ * An `@event-name=${...}` binding in a Lit template. [range] is relative to the template and includes the `@`;
+ * [tagStart] is the offset of the `<` of the element it is attached to.
+ */
+data class EventBinding(val eventName: String, val range: TextRange, val tagName: String, val tagStart: Int)
 
 /**
  * Links Lit event bindings (`@my-event=${...}`, `addEventListener('my-event', ...)`) with the code that
@@ -27,7 +30,9 @@ object LitEvents {
     private const val ADD_LISTENER = "addEventListener"
     private const val MAX_DEPTH = 8
 
-    private val TAG_WITH_ATTRIBUTES = Regex("""<([a-zA-Z][\w.\-]*)([^<>]*)""")
+    // Attributes may contain quoted values with "<" or ">" in them.
+    private val TAG_WITH_ATTRIBUTES = Regex("""<([a-zA-Z][\w.\-]*)((?:[^<>"']|"[^"]*"|'[^']*')*)""")
+    private val QUOTED = Regex(""""[^"]*"|'[^']*'""")
     private val EVENT_ATTRIBUTE = Regex("""@([^\s=/>"'`]+)\s*=""")
 
     // ------------------------------------------------------------- templates
@@ -37,10 +42,12 @@ object LitEvents {
         val result = mutableListOf<EventBinding>()
         for (tag in TAG_WITH_ATTRIBUTES.findAll(text)) {
             val attributes = tag.groups[2]!!
-            for (attribute in EVENT_ATTRIBUTE.findAll(attributes.value)) {
+            // Blank quoted values so `title="@x=1"` is not taken for a binding; offsets are preserved.
+            val unquoted = QUOTED.replace(attributes.value) { " ".repeat(it.value.length) }
+            for (attribute in EVENT_ATTRIBUTE.findAll(unquoted)) {
                 val start = attributes.range.first + attribute.range.first
                 val nameEnd = attributes.range.first + attribute.groups[1]!!.range.last + 1
-                result += EventBinding(attribute.groupValues[1], TextRange(start, nameEnd), tag.groupValues[1])
+                result += EventBinding(attribute.groupValues[1], TextRange(start, nameEnd), tag.groupValues[1], tag.range.first)
             }
         }
         return result
@@ -116,7 +123,7 @@ object LitEvents {
                 if (!ScopedElements.isLitHtmlTemplate(template)) continue
                 for (binding in findEventBindings(template)) {
                     if (binding.eventName != eventName) continue
-                    result += TemplateLocation(template, binding.range)
+                    result += TemplateLocation(template, binding.range, binding.tagStart)
                 }
             }
             for (call in PsiTreeUtil.findChildrenOfType(file, JSCallExpression::class.java)) {

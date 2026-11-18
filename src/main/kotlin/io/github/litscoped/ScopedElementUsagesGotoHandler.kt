@@ -45,7 +45,8 @@ class ScopedElementUsagesGotoHandler : GotoDeclarationHandler {
                     if (!applies) continue
                     for (tag in tags) {
                         // Range from "<" to the end of the tag name.
-                        result += TemplateLocation(template, TextRange(tag.range.startOffset - 1, tag.range.endOffset))
+                        val tagStart = tag.range.startOffset - 1
+                        result += TemplateLocation(template, TextRange(tagStart, tag.range.endOffset), tagStart)
                     }
                 }
             }
