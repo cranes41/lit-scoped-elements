@@ -12,6 +12,20 @@ class TemplateLocationTest : BasePlatformTestCase() {
         PsiTreeUtil.findChildrenOfType(myFixture.file, JSStringTemplateExpression::class.java)
             .first { ScopedElements.isLitHtmlTemplate(it) }
 
+    fun testTemplateScansAreCachedUntilTheNextChange() {
+        myFixture.configureByText("a.js", "const t = html`<x-el @evt=${'$'}{h}></x-el>`;")
+        assertSame(ScopedElements.findCustomElementTags(template()), ScopedElements.findCustomElementTags(template()))
+        assertSame(LitEvents.findEventBindings(template()), LitEvents.findEventBindings(template()))
+
+        WriteCommandAction.runWriteCommandAction(project) {
+            val document = myFixture.editor.document
+            document.insertString(document.text.indexOf("</x-el>"), "<y-el @other=${'$'}{h}></y-el>")
+            PsiDocumentManager.getInstance(project).commitAllDocuments()
+        }
+        assertEquals(listOf("x-el", "y-el"), ScopedElements.findCustomElementTags(template()).filter { !it.closing }.map { it.name })
+        assertEquals(listOf("evt", "other"), LitEvents.findEventBindings(template()).map { it.eventName })
+    }
+
     fun testQuotedValuesDoNotBreakBindings() {
         myFixture.configureByText(
             "a.js",

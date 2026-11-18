@@ -18,6 +18,8 @@ import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiElement
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.search.searches.ReferencesSearch
+import com.intellij.openapi.util.Key
+import com.intellij.psi.util.CachedValue
 import com.intellij.psi.util.CachedValueProvider
 import com.intellij.util.Processor
 import com.intellij.psi.util.CachedValuesManager
@@ -50,6 +52,7 @@ object ScopedElements {
     private const val MAX_SPREAD_DEPTH = 4
 
     private val TEMPLATE_TAGS = setOf("html", "staticHtml")
+    private val TAGS_KEY = Key.create<CachedValue<List<TagOccurrence>>>("lit.scoped.templateTags")
 
     // Valid custom element names start with a lowercase ASCII letter and contain a hyphen.
     private const val CUSTOM_ELEMENT_NAME = """[a-z][a-z0-9._]*-[a-z0-9._\-]*"""
@@ -74,12 +77,14 @@ object ScopedElements {
      * Finds custom element tags in the literal parts of [template]. Interpolations (`${...}`) and
      * HTML comments are ignored. Ranges are relative to [template].
      */
-    fun findCustomElementTags(template: JSStringTemplateExpression): List<TagOccurrence> {
-        return TAG_REGEX.findAll(literalText(template)).map { match ->
-            val group = match.groups[2]!!
-            TagOccurrence(group.value, TextRange(group.range.first, group.range.last + 1), match.groupValues[1] == "/")
-        }.toList()
-    }
+    fun findCustomElementTags(template: JSStringTemplateExpression): List<TagOccurrence> =
+        CachedValuesManager.getCachedValue(template, TAGS_KEY) {
+            val tags = TAG_REGEX.findAll(literalText(template)).map { match ->
+                val group = match.groups[2]!!
+                TagOccurrence(group.value, TextRange(group.range.first, group.range.last + 1), match.groupValues[1] == "/")
+            }.toList()
+            CachedValueProvider.Result.create(tags, PsiModificationTracker.MODIFICATION_COUNT)
+        }
 
     /**
      * The text of [template] with interpolations (`${...}`) and HTML comments replaced by spaces,

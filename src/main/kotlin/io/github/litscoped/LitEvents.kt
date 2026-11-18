@@ -11,7 +11,12 @@ import com.intellij.lang.javascript.psi.JSVariable
 import com.intellij.lang.javascript.psi.ecma6.JSStringTemplateExpression
 import com.intellij.lang.javascript.psi.ecmal4.JSClass
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.TextRange
+import com.intellij.psi.util.CachedValue
+import com.intellij.psi.util.CachedValueProvider
+import com.intellij.psi.util.CachedValuesManager
+import com.intellij.psi.util.PsiModificationTracker
 import com.intellij.psi.PsiElement
 import com.intellij.psi.util.PsiTreeUtil
 
@@ -33,11 +38,18 @@ object LitEvents {
     // Attributes may contain quoted values with "<" or ">" in them.
     private val TAG_WITH_ATTRIBUTES = Regex("""<([a-zA-Z][\w.\-]*)((?:[^<>"']|"[^"]*"|'[^']*')*)""")
     private val QUOTED = Regex(""""[^"]*"|'[^']*'""")
+    private val BINDINGS_KEY = Key.create<CachedValue<List<EventBinding>>>("lit.scoped.eventBindings")
     private val EVENT_ATTRIBUTE = Regex("""@([^\s=/>"'`]+)\s*=""")
 
     // ------------------------------------------------------------- templates
 
-    fun findEventBindings(template: JSStringTemplateExpression): List<EventBinding> {
+    /** `@event` bindings of [template], cached until the next PSI change. */
+    fun findEventBindings(template: JSStringTemplateExpression): List<EventBinding> =
+        CachedValuesManager.getCachedValue(template, BINDINGS_KEY) {
+            CachedValueProvider.Result.create(computeEventBindings(template), PsiModificationTracker.MODIFICATION_COUNT)
+        }
+
+    private fun computeEventBindings(template: JSStringTemplateExpression): List<EventBinding> {
         val text = ScopedElements.literalText(template)
         val result = mutableListOf<EventBinding>()
         for (tag in TAG_WITH_ATTRIBUTES.findAll(text)) {
