@@ -1,0 +1,44 @@
+<idea-plugin>
+    <id>io.github.litscoped.scoped-elements</id>
+    <name>Lit Scoped Elements</name>
+    <vendor>lit-scoped-elements</vendor>
+
+    <description><![CDATA[
+    Support for <a href="https://open-wc.org/docs/development/scoped-elements/">Open WC scoped elements</a>
+    in <a href="https://lit.dev">Lit</a> components:
+    <ul>
+      <li><b>Navigation</b>: Ctrl/Cmd+Click (Go to Declaration) on a custom element tag in an
+          <code>html`...`</code> template opens the class registered for it in <code>scopedElements</code>.</li>
+      <li><b>Events</b>: Ctrl/Cmd+Click on <code>@my-event</code> in a template shows where the event is fired
+          (<code>new CustomEvent('my-event')</code>); Ctrl/Cmd+Click on the event name in
+          <code>new CustomEvent('my-event')</code> shows who listens to it (<code>@my-event</code> bindings and
+          <code>addEventListener</code>).</li>
+      <li><b>Inspection</b>: reports custom elements used in templates that are missing from
+          <code>scopedElements</code>, with a quick fix to add them.</li>
+    </ul>
+    Supports the <code>static scopedElements = {...}</code> field and the
+    <code>static get scopedElements()</code> getter, spreads such as <code>...super.scopedElements</code>,
+    and inheritance.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.xml</depends>
+    <depends>JavaScript</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <gotoDeclarationHandler order="first"
+                                implementation="io.github.litscoped.ScopedElementGotoDeclarationHandler"/>
+        <gotoDeclarationHandler order="first"
+                                implementation="io.github.litscoped.LitEventGotoDeclarationHandler"/>
+
+        <localInspection language="JavaScript"
+                         applyToDialects="true"
+                         shortName="LitMissingScopedElement"
+                         displayName="Custom element is not declared in scopedElements"
+                         groupPath="JavaScript and TypeScript"
+                         groupName="Lit / Open WC"
+                         enabledByDefault="true"
+                         level="WARNING"
+                         implementationClass="io.github.litscoped.MissingScopedElementInspection"/>
+    </extensions>
+</idea-plugin>

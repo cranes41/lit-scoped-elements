@@ -1,0 +1,32 @@
+<html>
+<body>
+Reports custom elements used in a Lit <code>html`...`</code> template that are not registered in the
+<code>scopedElements</code> of the enclosing class (Open WC <code>ScopedElementsMixin</code>).
+<p>
+  With scoped elements, a tag that is not in <code>scopedElements</code> is not upgraded inside the
+  component's shadow root and silently renders as an unknown element.
+</p>
+<p>Example:</p>
+<pre><code>
+class MyCard extends ScopedElementsMixin(LitElement) {
+  static scopedElements = { 'my-button': MyButton };
+
+  render() {
+    return html`
+      &lt;my-button&gt;OK&lt;/my-button&gt;
+      &lt;my-icon&gt;&lt;/my-icon&gt;   // reported: not in scopedElements
+    `;
+  }
+}
+</code></pre>
+<p>
+  Only classes that declare <code>scopedElements</code> or apply <code>ScopedElementsMixin</code> (directly or through
+  a super class) are checked. Entries inherited from a super class or spread with
+  <code>...super.scopedElements</code> are taken into account.
+</p>
+<!-- tooltip end -->
+<p>
+  Use the <b>Ignored tag names</b> option to exclude globally registered elements (regular expressions).
+</p>
+</body>
+</html>
