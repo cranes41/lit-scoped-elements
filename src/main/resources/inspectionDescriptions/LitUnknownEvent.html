@@ -1,0 +1,16 @@
+<html>
+<body>
+Reports <code>@my-event</code> bindings in Lit templates when nothing in the project fires <code>my-event</code>,
+which often means a typo in the event name.
+<p>
+  Fired means <code>new CustomEvent('my-event')</code>, <code>new Event('my-event')</code>, a configured helper call
+  such as <code>this.fire('my-event')</code>, or an <code>Event</code> subclass passing the name to <code>super()</code>.
+  DOM events (<code>click</code>, <code>input</code>, …) are never reported.
+</p>
+<!-- tooltip end -->
+<p>
+  Events fired by libraries are only found when <i>Search libraries</i> is on in
+  <i>Settings | Languages &amp; Frameworks | Lit Scoped Elements</i>; otherwise add them to <b>Ignored event names</b>.
+</p>
+</body>
+</html>

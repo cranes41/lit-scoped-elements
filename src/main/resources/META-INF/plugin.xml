@@ -66,5 +66,23 @@
                          enabledByDefault="true"
                          level="WARNING"
                          implementationClass="io.github.litscoped.UnusedScopedElementInspection"/>
+        <localInspection language="JavaScript"
+                         applyToDialects="true"
+                         shortName="LitUnknownEvent"
+                         displayName="Event listened to but never fired"
+                         groupPath="JavaScript and TypeScript"
+                         groupName="Lit / Open WC"
+                         enabledByDefault="true"
+                         level="WEAK WARNING"
+                         implementationClass="io.github.litscoped.UnknownEventInspection"/>
+        <localInspection language="JavaScript"
+                         applyToDialects="true"
+                         shortName="LitUnheardEvent"
+                         displayName="Event fired but never listened to"
+                         groupPath="JavaScript and TypeScript"
+                         groupName="Lit / Open WC"
+                         enabledByDefault="false"
+                         level="WEAK WARNING"
+                         implementationClass="io.github.litscoped.UnheardEventInspection"/>
     </extensions>
 </idea-plugin>
