@@ -37,6 +37,29 @@ class SampleProjectTest : BasePlatformTestCase() {
 
     fun testEdgeCases() = assertEquals(listOf("sl-button", "ui-button"), reportedTags("src/features/edge-cases.js"))
 
+    fun testNotifications() {
+        val path = "src/features/notifications.js"
+        // <app-toast> is defined globally: not reported, and navigation falls back to its definition.
+        assertEmpty(reportedTags(path))
+        assertTarget(path, "<app-toast\n", "AppToast", "app-toast.js")
+        // Helper call and Event subclass.
+        assertEquals(listOf("app-toast.js:'toast-closed'"), eventTargets(path, "@toast-closed="))
+        assertEquals(listOf("app-toast.js:new ToastShownEvent()"), eventTargets(path, "@toast-shown="))
+        // Template literal name -> its listener.
+        assertEquals(listOf("notifications.js:@notify"), eventTargets(path, "`notify`"))
+
+        myFixture.enableInspections(UnusedScopedElementInspection(), UnknownEventInspection(), UnheardEventInspection())
+        myFixture.configureFromTempProjectFile(path)
+        val problems = myFixture.doHighlighting(HighlightSeverity.WEAK_WARNING).mapNotNull { it.description }.toSet()
+        assertTrue(problems.toString(), "Scoped element <ui-icon> is not used in any template" in problems)
+        assertTrue(problems.toString(), "Nothing in the project fires 'toast-vanished'" in problems)
+        assertTrue(problems.toString(), "Nothing in the project listens to 'never-heard'" in problems)
+        assertEquals(
+            problems.toString(), 3,
+            problems.count { it.startsWith("Scoped element") || it.startsWith("Nothing in the project") },
+        )
+    }
+
     fun testScopedElementKeyToTemplates() {
         // MyApp's entry: its own template + the toolbar sub function it calls.
         assertEquals(listOf("my-app.js", "renderers.js"), usageFiles("src/my-app.js", "'ui-button': UiButton"))
