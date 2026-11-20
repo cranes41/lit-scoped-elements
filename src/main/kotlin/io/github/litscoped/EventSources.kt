@@ -1,6 +1,7 @@
 package io.github.litscoped
 
 import com.intellij.ide.trustedProjects.TrustedProjects
+import com.intellij.ide.trustedProjects.TrustedProjectsListener
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.guessProjectDir
 import com.intellij.openapi.roots.AdditionalLibraryRootsProvider
@@ -29,22 +30,44 @@ object EventSources {
         val base = project.guessProjectDir()
         val trusted = TrustedProjects.isProjectTrusted(project)
         return LitSettings.getInstance(project).eventSources
-            .mapNotNull { resolve(project, it) }
+            .mapNotNull { resolve(project, it, trusted) }
             .filter { isAcceptable(it) && (trusted || (base != null && VfsUtilCore.isAncestor(base, it, false))) }
             .distinct()
     }
 
-    /** [path] as a local file: a `file://` URL, an absolute path, or a path relative to the project folder. */
-    fun resolve(project: Project, path: String): VirtualFile? {
+    /**
+     * [path] as a local file: a `file://` URL, an absolute path, or a path relative to the project folder.
+     *
+     * Whether a path is allowed is decided from its text, before touching the file system: looking up a network path
+     * (`\\server\share`) can already send the user's credentials to that server. Network paths are never resolved,
+     * and in an untrusted project only paths relative to the project folder are.
+     */
+    fun resolve(project: Project, path: String, trusted: Boolean = TrustedProjects.isProjectTrusted(project)): VirtualFile? {
         val trimmed = path.trim()
-        if (trimmed.isEmpty()) return null
+        if (trimmed.isEmpty() || isNetworkPath(trimmed)) return null
         if ("://" in trimmed) {
             val scheme = trimmed.substringBefore("://")
-            return if (scheme in LOCAL_SCHEMES) VirtualFileManager.getInstance().findFileByUrl(trimmed) else null
+            if (!trusted || scheme !in LOCAL_SCHEMES) return null
+            return VirtualFileManager.getInstance().findFileByUrl(trimmed)
         }
-        if (File(trimmed).isAbsolute) return LocalFileSystem.getInstance().findFileByPath(trimmed)
+        if (isAbsolute(trimmed)) return if (trusted) LocalFileSystem.getInstance().findFileByPath(trimmed) else null
         return project.guessProjectDir()?.findFileByRelativePath(trimmed)
     }
+
+    /** UNC paths (`\\server\share`, `//server/share`) and `file:` URLs naming a host (`file://server/share`). */
+    fun isNetworkPath(path: String): Boolean {
+        val normalized = path.trim().replace('\\', '/')
+        if (normalized.startsWith("//")) return true
+        if (normalized.startsWith("file:", ignoreCase = true)) {
+            val rest = normalized.substring("file:".length)
+            // file:///path is local; file://host/path and file:////host/path are not.
+            return rest.startsWith("//") && (!rest.startsWith("///") || rest.startsWith("////"))
+        }
+        return false
+    }
+
+    private fun isAbsolute(path: String): Boolean =
+        File(path).isAbsolute || path.startsWith("/") || path.startsWith("\\") || Regex("""^[A-Za-z]:""").containsMatchIn(path)
 
     /** False for roots too broad to index: a filesystem root, the home folder, or a folder containing it. */
     fun isAcceptable(file: VirtualFile): Boolean {
@@ -100,5 +123,12 @@ class EventSourcesLibraryProvider : AdditionalLibraryRootsProvider() {
 
     companion object {
         const val LIBRARY_ID = "io.github.litscoped.eventSources"
+    }
+}
+
+/** Adds the event sources outside the project once the project is trusted. */
+class EventSourcesTrustListener : TrustedProjectsListener {
+    override fun onProjectTrusted(project: Project) {
+        if (!project.isDisposed) LitSettings.getInstance(project).projectTrusted()
     }
 }

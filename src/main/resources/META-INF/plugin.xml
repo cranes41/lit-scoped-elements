@@ -31,6 +31,11 @@
     <depends>com.intellij.modules.xml</depends>
     <depends>JavaScript</depends>
 
+    <applicationListeners>
+        <listener class="io.github.litscoped.EventSourcesTrustListener"
+                  topic="com.intellij.ide.trustedProjects.TrustedProjectsListener"/>
+    </applicationListeners>
+
     <extensions defaultExtensionNs="com.intellij">
         <fileBasedIndex implementation="io.github.litscoped.LitIndex"/>
         <additionalLibraryRootsProvider implementation="io.github.litscoped.EventSourcesLibraryProvider"/>

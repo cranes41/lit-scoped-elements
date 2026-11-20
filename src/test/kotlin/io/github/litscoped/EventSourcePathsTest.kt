@@ -2,6 +2,7 @@ package io.github.litscoped
 
 import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.project.guessProjectDir
+import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.testFramework.LightPlatformTestCase
 import com.intellij.testFramework.PsiTestUtil
@@ -69,6 +70,26 @@ class EventSourcePathsTest : BasePlatformTestCase() {
         assertEquals(inProject, EventSources.resolve(project, relative))
         assertEquals(inProject, EventSources.resolve(project, inProject.url))
         assertNull(EventSources.resolve(project, "does/not/exist"))
+    }
+
+    fun testNetworkPathsAreRejectedBeforeAnyLookup() {
+        for (path in listOf("\\\\server\\share", "//server/share", "file://server/share", "file:////server/share", "FILE://server/x")) {
+            assertTrue(path, EventSources.isNetworkPath(path))
+            assertNull(path, EventSources.resolve(project, path, trusted = true))
+        }
+        for (path in listOf("/Users/me/lib", "file:///Users/me/lib", "node_modules/pkg", "C:\\lib")) {
+            assertFalse(path, EventSources.isNetworkPath(path))
+        }
+    }
+
+    fun testUntrustedProjectOnlyResolvesPathsInsideIt() {
+        val inProject = myFixture.addFileToProject("events/emitter.js", "class E extends HTMLElement {}").virtualFile.parent
+        val outside = folder("untrusted-outside", "x.js", "class X extends HTMLElement {}")
+        val relative = VfsUtilCore.getRelativePath(inProject, project.guessProjectDir()!!)!!
+        assertEquals(inProject, EventSources.resolve(project, relative, trusted = false))
+        assertNull(EventSources.resolve(project, outside.url, trusted = false))
+        assertNull(EventSources.resolve(project, "/tmp", trusted = false))
+        assertEquals(outside, EventSources.resolve(project, outside.url, trusted = true))
     }
 
     fun testUntrustedOrBroadPathsAreRejected() {

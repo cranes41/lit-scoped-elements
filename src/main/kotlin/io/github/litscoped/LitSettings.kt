@@ -65,6 +65,12 @@ class LitSettings(private val project: Project) : PersistentStateComponent<LitSe
             outsideRootsChanged(oldOutside)
         }
 
+    /** Called when the project becomes trusted: event sources outside it can now be used. */
+    fun projectTrusted() {
+        tracker.incModificationCount()
+        outsideRootsChanged(emptyList())
+    }
+
     /** Re-indexes when the event sources outside the project, added as a library, change. */
     private fun outsideRootsChanged(oldOutside: List<VirtualFile>) {
         if (project.isDefault || project.isDisposed) return
