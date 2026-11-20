@@ -5,29 +5,28 @@ import { UiIcon } from '../components/ui-icon.js';
 import '../components/app-toast.js';
 
 /**
- * CAS 9 — éléments globaux, helpers d'émission, sous-classes d'Event, inspections d'usage.
+ * CASE 10 — global elements, event helpers, Event subclasses, usage inspections.
  *
  *  NAVIGATION
- *  - Cmd/Ctrl+Click sur <app-toast>   → AppToast (défini par customElements.define).
- *  - Cmd/Ctrl+Click sur @toast-closed → this.fire('toast-closed') dans app-toast.js.
- *  - Cmd/Ctrl+Click sur @toast-shown  → new ToastShownEvent() dans app-toast.js.
- *  - Cmd/Ctrl+Click sur `notify`      → @notify plus bas (nom en template literal).
- *  - Survol de <ui-badge>             → classe, fichier, et où elle est enregistrée.
+ *  - Cmd/Ctrl+Click on <app-toast>   → AppToast (defined with customElements.define).
+ *  - Cmd/Ctrl+Click on @toast-closed → this.fire('toast-closed') in app-toast.js.
+ *  - Cmd/Ctrl+Click on @toast-shown  → new ToastShownEvent() in app-toast.js.
+ *  - Cmd/Ctrl+Click on `notify`      → @notify below (name in a template literal).
+ *  - Hover over <ui-badge>           → class, file, and where it is registered.
  *
  *  INSPECTIONS
- *  - 'ui-icon' dans scopedElements est grisé : jamais utilisé. Alt+Entrée → le retirer.
- *  - @toast-vanished est signalé : rien ne l'émet dans le projet.
- *  - 'never-heard' : personne ne l'écoute (inspection désactivée par défaut,
+ *  - 'ui-icon' in scopedElements is greyed out: never used. Alt+Enter → remove it.
+ *  - @toast-vanished is reported: nothing in the project fires it.
+ *  - 'never-heard': nothing listens to it (inspection off by default,
  *    Settings → Editor → Inspections → Lit / Open WC → "Event fired but never listened to").
  *
- *  COMPLÉTION
- *  - Taper `<` dans le template → propose ui-badge, ui-icon.
- *  - Taper `@` sur <app-toast …> → propose toast-shown, toast-closed.
+ *  COMPLETION
+ *  - Type `<` in the template → suggests ui-badge, ui-icon.
+ *  - Type `@` on <app-toast …> → suggests toast-shown, toast-closed.
  *
- *  RENOMMAGE
- *  - Shift+F6 sur la clé 'ui-badge' → renomme aussi <ui-badge>…</ui-badge> dans le template.
- */
-export class NotificationCenter extends ScopedElementsMixin(LitElement) {
+ *  RENAME
+ *  - Shift+F6 on the 'ui-badge' key → also renames <ui-badge>…</ui-badge> in the template.
+ */export class NotificationCenter extends ScopedElementsMixin(LitElement) {
   static scopedElements = {
     'ui-badge': UiBadge,
     'ui-icon': UiIcon,

@@ -3,8 +3,8 @@ import { ScopedElementsMixin } from '@open-wc/scoped-elements/lit-element.js';
 import { UiButton } from '../components/ui-button.js';
 
 /**
- * CAS 5 — pas de scoped elements : aucune vérification.
- * <anything-goes> n'est PAS souligné.
+ * CASE 5 — no scoped elements: nothing is checked.
+ * <anything-goes> is NOT underlined.
  */
 export class PlainElement extends LitElement {
   render() {
@@ -13,8 +13,8 @@ export class PlainElement extends LitElement {
 }
 
 /**
- * CAS 6 — scopedElements vide : tout est signalé.
- * Alt+Entrée sur <ui-button> → ajoute `'ui-button': UiButton` dans l'objet vide.
+ * CASE 6 — empty scopedElements: everything is reported.
+ * Alt+Enter on <ui-button> → adds `'ui-button': UiButton` to the empty object.
  */
 export class EmptyScoped extends ScopedElementsMixin(LitElement) {
   static scopedElements = {};
@@ -25,10 +25,10 @@ export class EmptyScoped extends ScopedElementsMixin(LitElement) {
 }
 
 /**
- * CAS 7 — balises globales à ignorer.
- * <sl-button> est souligné par défaut. Ajouter `sl-.*` dans
+ * CASE 7 — tags defined outside the project.
+ * <sl-button> is underlined by default. Add `sl-.*` to
  * Settings → Editor → Inspections → Lit / Open WC → Ignored tag names
- * pour le faire disparaître.
+ * to hide it.
  */
 export class WithGlobalElements extends ScopedElementsMixin(LitElement) {
   static scopedElements = { 'ui-button': UiButton };
@@ -39,10 +39,10 @@ export class WithGlobalElements extends ScopedElementsMixin(LitElement) {
 }
 
 /**
- * CAS 8 — ce qui n'est PAS vérifié :
- *  - les templates css`` (pas html``)
- *  - le contenu des interpolations ${...} qui ne sont pas des templates html``
- *  - les templates hors classe
+ * CASE 8 — what is NOT checked:
+ *  - css`` templates (only html``)
+ *  - the content of ${...} interpolations that are not html`` templates
+ *  - templates outside a class that no class renders
  */
 export class NotChecked extends ScopedElementsMixin(LitElement) {
   static scopedElements = {};

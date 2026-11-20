@@ -4,10 +4,10 @@ import { UiBadge } from '../components/ui-badge.js';
 import { UiIcon } from '../components/ui-icon.js';
 
 /**
- * CAS 4 — TypeScript
+ * CASE 4 — TypeScript
  *
- *  - Cmd+Click sur <ui-badge> → UiBadge.
- *  - <ui-avatar> est souligné.
+ *  - Cmd+Click on <ui-badge> → UiBadge.
+ *  - <ui-avatar> is underlined.
  */
 export class MyDashboard extends ScopedElementsMixin(LitElement) {
   static scopedElements = {

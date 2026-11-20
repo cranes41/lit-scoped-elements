@@ -1,27 +1,27 @@
 import { html } from 'lit';
 
 /**
- * CAS 9 — sous-fonctions de rendu, en dehors de toute classe.
+ * CASE 9 — render functions outside any class.
  *
- * Le plugin retrouve les classes qui appellent ces fonctions (directement ou via une autre
- * fonction, dans n'importe quel fichier) et utilise LEURS scopedElements :
+ * The plugin finds the classes calling these functions (directly or through another
+ * function, in any file) and uses THEIR scopedElements:
  *
- *  - renderToolbar() est appelée par MyApp (my-app.js) et TeamPanel (team-panel.js).
- *    <ui-button> et <ui-icon> sont déclarés dans les deux → OK, Cmd+Click → UiButton / UiIcon.
- *    <ui-tooltip> manque dans les deux → un seul avertissement qui cite les deux classes,
- *    et un quick fix par classe : "Add 'ui-tooltip' to MyApp.scopedElements", etc.
+ *  - renderToolbar() is called by MyApp (my-app.js) and TeamPanel (team-panel.js).
+ *    <ui-button> and <ui-icon> are declared in both → OK, Cmd+Click → UiButton / UiIcon.
+ *    <ui-tooltip> is missing from both → one warning naming both classes,
+ *    and one quick fix per class: "Add 'ui-tooltip' to MyApp.scopedElements", etc.
  *
- *  - renderUsers() → renderUserRow() → appelée par MyApp uniquement.
- *    Cmd+Click sur <user-card> → UserCard ; sur @user-selected → user-card.js.
+ *  - renderUsers() → renderUserRow() → called by MyApp only.
+ *    Cmd+Click on <user-card> → UserCard; on @user-selected → user-card.js.
  *
- *  - unusedRenderer() n'est appelée par aucune classe : rien n'est vérifié.
+ *  - unusedRenderer() is called by no class: nothing is checked.
  */
 export function renderToolbar(title) {
   return html`
     <header>
       <ui-icon name="menu"></ui-icon>
       <ui-button>${title}</ui-button>
-      <ui-tooltip>Aide</ui-tooltip>
+      <ui-tooltip>Help</ui-tooltip>
     </header>
   `;
 }

@@ -84,3 +84,8 @@ tasks.runIde {
         args(layout.projectDirectory.dir("sample-project").asFile.absolutePath)
     }
 }
+
+// SampleProjectTest reads the sample sources: changing them must rerun the tests.
+tasks.test {
+    inputs.dir("sample-project/src").withPropertyName("sampleProject")
+}

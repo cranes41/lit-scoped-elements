@@ -1,75 +1,74 @@
-# Projet de test – Lit Scoped Elements
+# Sample project – Lit Scoped Elements
 
-Composants Lit + `@open-wc/scoped-elements` pour tester le plugin à la main.
+Lit + `@open-wc/scoped-elements` components for trying the plugin by hand.
 
-## Ouvrir avec le plugin
+## Open with the plugin
 
-Depuis la racine du plugin :
+From the plugin's root folder:
 
 ```bash
-./gradlew runIde      # lance un WebStorm sandbox avec le plugin, ouvert sur ce projet
+./gradlew runIde      # starts a sandbox WebStorm with the plugin, opened on this project
 ```
 
-Ou installe le zip (`build/distributions/`) dans ton WebStorm et ouvre ce dossier.
+Or install the zip (`build/distributions/`) in your WebStorm and open this folder.
 
-## Ce qu'on doit voir
+## What you should see
 
-| Fichier | Cas | Soulignés (non déclarés) | Cmd/Ctrl+Click à essayer |
+| File | Case | Underlined (not declared) | Cmd/Ctrl+Click to try |
 |---|---|---|---|
-| `src/my-app.js` | champ `static scopedElements = {}`, helper `_renderFooter()`, template imbriqué, commentaire | `ui-avatar`, `ui-tooltip` | `<ui-button>`, `</ui-button>`, `<user-card>` |
-| `src/features/user-card.js` | getter + `...sharedElements` | `ui-button` | `<ui-badge>`, `<ui-icon>` → via la constante |
-| `src/features/team-panel.js` | `...super.scopedElements` / héritage seul | `ui-badge` (TeamPanel), `ui-avatar` (SimplePanel) | `<ui-button>` → UiButton via BasePanel |
+| `src/my-app.js` | `static scopedElements = {}` field, `_renderFooter()` helper, nested template, comment | `ui-avatar`, `ui-tooltip` | `<ui-button>`, `</ui-button>`, `<user-card>` |
+| `src/features/user-card.js` | getter + `...sharedElements` | `ui-button` | `<ui-badge>`, `<ui-icon>` → through the constant |
+| `src/features/team-panel.js` | `...super.scopedElements` / inheritance only | `ui-badge` (TeamPanel), `ui-avatar` (SimplePanel) | `<ui-button>` → UiButton through BasePanel |
 | `src/features/my-dashboard.ts` | TypeScript | `ui-avatar` | `<ui-badge>` |
-| `src/features/renderers.js` | sous-fonctions de rendu hors classe, appelées par MyApp et TeamPanel | `ui-tooltip` (manque dans les 2 classes, un quick fix par classe) | `<ui-button>`, `<user-card>`, `@user-selected` |
-| `src/features/notifications.js` | élément global (`customElements.define`), helper `this.fire()`, sous-classe d'`Event`, nom en template literal | aucun | `<app-toast>` → AppToast |
-| `src/features/edge-cases.js` | sans scoped elements, objet vide, balises globales, non vérifiés | `ui-button` (EmptyScoped), `sl-button` | — |
+| `src/features/renderers.js` | render functions outside any class, called by MyApp and TeamPanel | `ui-tooltip` (missing from both classes, one quick fix per class) | `<ui-button>`, `<user-card>`, `@user-selected` |
+| `src/features/notifications.js` | global element (`customElements.define`), `this.fire()` helper, `Event` subclass, template literal name | none | `<app-toast>` → AppToast |
+| `src/features/edge-cases.js` | no scoped elements, empty object, tags defined elsewhere, what is not checked | `ui-button` (EmptyScoped), `sl-button` | — |
 
-### Depuis scopedElements vers les templates
+### From scopedElements to the templates
 
-| Où cliquer (Cmd/Ctrl+Click) | Résultat |
+| Where to click (Cmd/Ctrl+Click) | Result |
 |---|---|
-| clé `'ui-button'` dans `scopedElements` de `src/my-app.js` | popup : le template de MyApp + `renderToolbar()` (renderers.js) |
-| clé `'ui-button'` dans `src/features/base-panel.js` | popup : 3 usages dans team-panel.js (TeamPanel via `...super`, SimplePanel par héritage) + renderers.js |
+| `'ui-button'` key in the `scopedElements` of `src/my-app.js` | popup: MyApp's template + `renderToolbar()` (renderers.js) |
+| `'ui-button'` key in `src/features/base-panel.js` | popup: 3 usages in team-panel.js (TeamPanel through `...super`, SimplePanel through inheritance) + renderers.js |
 
-### Événements
+### Events
 
-| Où cliquer (Cmd/Ctrl+Click) | Résultat |
+| Where to click (Cmd/Ctrl+Click) | Result |
 |---|---|
-| `@user-selected` dans `src/my-app.js` | `new CustomEvent('user-selected')` dans `user-card.js` |
-| `@panel-close` dans `src/my-app.js` | `new Event(PANEL_CLOSE)` dans `base-panel.js` (nom dans une constante, classe héritée) |
-| `'user-selected'` dans `new CustomEvent(...)` de `user-card.js` | popup : `@user-selected` (my-app.js) + `addEventListener` (team-panel.js) |
-| `'user-selected'` dans `addEventListener(...)` de `team-panel.js` | `user-card.js` |
-| `@click` | aucun dispatch → navigation standard de WebStorm |
+| `@user-selected` in `src/my-app.js` | `new CustomEvent('user-selected')` in `user-card.js` |
+| `@panel-close` in `src/my-app.js` | `new Event(PANEL_CLOSE)` in `base-panel.js` (name in a constant, inherited class) |
+| `'user-selected'` in the `new CustomEvent(...)` of `user-card.js` | popup: `@user-selected` (my-app.js) + `addEventListener` (team-panel.js) |
+| `'user-selected'` in the `addEventListener(...)` of `team-panel.js` | `user-card.js` |
+| `@click` | nothing fires it → standard WebStorm navigation |
+| `@toast-closed` in `src/features/notifications.js` | `this.fire('toast-closed')` in `app-toast.js` (helper) |
+| `@toast-shown` in `src/features/notifications.js` | `new ToastShownEvent()` in `app-toast.js` (`Event` subclass) |
+| `` `notify` `` in `src/features/notifications.js` | `@notify` in the same template |
 
-| `@toast-closed` dans `src/features/notifications.js` | `this.fire('toast-closed')` dans `app-toast.js` (helper) |
-| `@toast-shown` dans `src/features/notifications.js` | `new ToastShownEvent()` dans `app-toast.js` (sous-classe d'`Event`) |
-| `` `notify` `` dans `src/features/notifications.js` | `@notify` dans le même template |
+### Other features (in `src/features/notifications.js`)
 
-### Autres fonctionnalités (dans `src/features/notifications.js`)
-
-| Action | Résultat |
+| Action | Result |
 |---|---|
-| clé `'ui-icon'` | grisée : jamais utilisée. Alt+Entrée → *Remove 'ui-icon' from scopedElements* |
-| `@toast-vanished` | signalé : rien ne l'émet dans le projet |
-| `'never-heard'` | signalé seulement si l'inspection *Event fired but never listened to* est activée (désactivée par défaut) |
-| taper `<` dans le template | complétion : `ui-badge`, `ui-icon` |
-| taper `@` sur `<app-toast …>` | complétion : `toast-shown`, `toast-closed` |
-| taper `.` ou un nom d'attribut sur `<app-toast …>` | complétion des propriétés : `.message`, `message` |
-| Shift+F6 sur la clé `'ui-badge'` | renomme aussi `<ui-badge>…</ui-badge>` |
-| Alt+F7 sur la clé `'ui-badge'` | liste les usages dans les templates |
-| survol de `<ui-badge>` | classe, fichier et enregistrement |
-| icônes dans la gouttière | sur les clés de `scopedElements`, les dispatches et les `@event` |
+| `'ui-icon'` key | greyed out: never used. Alt+Enter → *Remove 'ui-icon' from scopedElements* |
+| `@toast-vanished` | reported: nothing in the project fires it |
+| `'never-heard'` | reported only when the *Event fired but never listened to* inspection is on (off by default) |
+| type `<` in the template | completion: `ui-badge`, `ui-icon` |
+| type `@` on `<app-toast …>` | completion: `toast-shown`, `toast-closed` |
+| type `.` or an attribute name on `<app-toast …>` | property completion: `.message`, `message` |
+| Shift+F6 on the `'ui-badge'` key | also renames `<ui-badge>…</ui-badge>` |
+| Alt+F7 on the `'ui-badge'` key | lists the usages in templates |
+| hover over `<ui-badge>` | class, file, and registration |
+| gutter icons | on `scopedElements` keys, dispatches, and `@event` bindings |
 
-Quick fix : Alt+Entrée sur un élément souligné → *Add 'xxx' to scopedElements*, avec l'import de la classe.
+Quick fix: Alt+Enter on an underlined element → *Add 'xxx' to scopedElements*, with the import of the class.
 
-Helpers d'émission et recherche dans `node_modules` : *Settings → Languages & Frameworks → Lit Scoped Elements*.
+Event helpers and searching `node_modules`: *Settings → Languages & Frameworks → Lit Scoped Elements*.
 
-Pour masquer `sl-button` : *Settings → Editor → Inspections → JavaScript and TypeScript → Lit / Open WC*,
+To hide `sl-button`: *Settings → Editor → Inspections → JavaScript and TypeScript → Lit / Open WC*,
 option *Ignored tag names* → `sl-.*`.
 
-Ces attentes sont vérifiées automatiquement par `src/test/kotlin/io/github/litscoped/SampleProjectTest.kt`.
+These expectations are checked automatically by `src/test/kotlin/io/github/litscoped/SampleProjectTest.kt`.
 
-## Lancer dans le navigateur (optionnel)
+## Run in the browser (optional)
 
 ```bash
 npm install

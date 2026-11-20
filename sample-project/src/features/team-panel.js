@@ -4,11 +4,11 @@ import { UiAvatar } from '../components/ui-avatar.js';
 import { renderToolbar } from './renderers.js';
 
 /**
- * CAS 3a — `...super.scopedElements`
+ * CASE 3a — `...super.scopedElements`
  *
- *  - <ui-button> / <ui-icon> viennent de BasePanel → OK, Cmd+Click → UiButton / UiIcon.
- *  - <ui-avatar> est déclaré localement.
- *  - <ui-badge> est souligné.
+ *  - <ui-button> / <ui-icon> come from BasePanel → OK, Cmd+Click → UiButton / UiIcon.
+ *  - <ui-avatar> is declared locally.
+ *  - <ui-badge> is underlined.
  */
 export class TeamPanel extends BasePanel {
   static scopedElements = {
@@ -17,7 +17,7 @@ export class TeamPanel extends BasePanel {
   };
 
   /**
-   * ÉVÉNEMENTS — Cmd+Click sur 'user-selected' ci-dessous → user-card.js (là où il est émis).
+   * EVENTS — Cmd+Click on 'user-selected' below → user-card.js (where it is fired).
    */
   connectedCallback() {
     super.connectedCallback();
@@ -37,10 +37,10 @@ export class TeamPanel extends BasePanel {
 }
 
 /**
- * CAS 3b — aucune déclaration propre : les scopedElements de BasePanel s'appliquent.
+ * CASE 3b — no declaration of its own: BasePanel's scopedElements apply.
  *
- *  - <ui-button> OK, <ui-avatar> souligné.
- *  - Pas de quick fix ici (pas d'objet scopedElements dans cette classe).
+ *  - <ui-button> OK, <ui-avatar> underlined.
+ *  - No quick fix here (this class has no scopedElements object).
  */
 export class SimplePanel extends BasePanel {
   render() {

@@ -7,18 +7,18 @@ import { TeamPanel } from './features/team-panel.js';
 import { renderToolbar, renderUsers } from './features/renderers.js';
 
 /**
- * CAS 1 — `static scopedElements = {...}` (forme champ)
+ * CASE 1 — `static scopedElements = {...}` (field form)
  *
- *  - Cmd/Ctrl+Click sur <ui-button>, <ui-icon>, <user-card>… → ouvre la classe.
- *  - Cmd/Ctrl+Click sur la balise fermante </ui-button> fonctionne aussi.
- *  - <ui-avatar> et <ui-tooltip> sont soulignés : absents de scopedElements.
- *    Alt+Entrée → "Add 'ui-avatar' to scopedElements".
+ *  - Cmd/Ctrl+Click on <ui-button>, <ui-icon>, <user-card>… → opens the class.
+ *  - Cmd/Ctrl+Click on the closing tag </ui-button> works too.
+ *  - <ui-avatar> and <ui-tooltip> are underlined: missing from scopedElements.
+ *    Alt+Enter → "Add 'ui-avatar' to scopedElements".
  *
- * ÉVÉNEMENTS
- *  - Cmd/Ctrl+Click sur @user-selected → new CustomEvent('user-selected') dans user-card.js.
- *  - Cmd/Ctrl+Click sur @panel-close   → new Event(PANEL_CLOSE) dans base-panel.js
- *    (TeamPanel hérite de BasePanel ; le nom vient d'une constante).
- *  - Cmd/Ctrl+Click sur @click : aucun dispatch dans le projet → navigation standard de WebStorm.
+ * EVENTS
+ *  - Cmd/Ctrl+Click on @user-selected → new CustomEvent('user-selected') in user-card.js.
+ *  - Cmd/Ctrl+Click on @panel-close   → new Event(PANEL_CLOSE) in base-panel.js
+ *    (TeamPanel extends BasePanel; the name comes from a constant).
+ *  - Cmd/Ctrl+Click on @click: nothing fires it in the project → standard WebStorm navigation.
  */
 export class MyApp extends ScopedElementsMixin(LitElement) {
   static scopedElements = {
@@ -45,7 +45,7 @@ export class MyApp extends ScopedElementsMixin(LitElement) {
 
       <ui-button @click=${() => this.requestUpdate()}>Refresh</ui-button>
 
-      <!-- Les commentaires sont ignorés : <ui-not-checked></ui-not-checked> -->
+      <!-- Comments are ignored: <ui-not-checked></ui-not-checked> -->
 
       ${this.users.map(
         (user) => html`<user-card .user=${user} @user-selected=${this._onUserSelected}></user-card>`,
@@ -65,7 +65,7 @@ export class MyApp extends ScopedElementsMixin(LitElement) {
     console.log('user selected', event.detail);
   }
 
-  /** Les méthodes helper qui renvoient du html`` sont aussi vérifiées. */
+  /** Helper methods returning html`` are checked too. */
   _renderFooter() {
     return html`<footer><ui-tooltip>missing!</ui-tooltip></footer>`;
   }

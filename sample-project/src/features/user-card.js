@@ -4,11 +4,11 @@ import { UiAvatar } from '../components/ui-avatar.js';
 import { sharedElements } from '../components/shared-elements.js';
 
 /**
- * CAS 2 — `static get scopedElements()` (forme getter) + spread d'une constante
+ * CASE 2 — `static get scopedElements()` (getter form) + spread of a constant
  *
- *  - <ui-icon> et <ui-badge> viennent de `...sharedElements` → OK, et Cmd+Click
- *    ouvre UiIcon / UiBadge.
- *  - <ui-button> est souligné (pas déclaré ici).
+ *  - <ui-icon> and <ui-badge> come from `...sharedElements` → OK, and Cmd+Click
+ *    opens UiIcon / UiBadge.
+ *  - <ui-button> is underlined (not declared here).
  */
 export class UserCard extends ScopedElementsMixin(LitElement) {
   static get scopedElements() {
@@ -21,8 +21,8 @@ export class UserCard extends ScopedElementsMixin(LitElement) {
   static properties = { user: { type: Object } };
 
   /**
-   * ÉVÉNEMENTS — Cmd+Click sur 'user-selected' ci-dessous → liste les écouteurs :
-   * `@user-selected` dans my-app.js et `addEventListener('user-selected')` dans team-panel.js.
+   * EVENTS — Cmd+Click on 'user-selected' below → lists the listeners:
+   * `@user-selected` in my-app.js and `addEventListener('user-selected')` in team-panel.js.
    */
   _select() {
     this.dispatchEvent(
