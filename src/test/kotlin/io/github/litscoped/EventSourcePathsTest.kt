@@ -89,6 +89,9 @@ class EventSourcePathsTest : BasePlatformTestCase() {
         assertEquals(inProject, EventSources.resolve(project, relative, trusted = false))
         assertNull(EventSources.resolve(project, outside.url, trusted = false))
         assertNull(EventSources.resolve(project, "/tmp", trusted = false))
+        assertNull(EventSources.resolve(project, "../untrusted-outside", trusted = false))
+        assertNull(EventSources.resolve(project, "events\\..\\..\\untrusted-outside", trusted = false))
+        assertEquals(outside, EventSources.resolve(project, "../untrusted-outside", trusted = true))
         assertEquals(outside, EventSources.resolve(project, outside.url, trusted = true))
     }
 

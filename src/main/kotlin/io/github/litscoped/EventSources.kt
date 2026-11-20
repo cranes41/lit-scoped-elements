@@ -51,6 +51,8 @@ object EventSources {
             return VirtualFileManager.getInstance().findFileByUrl(trimmed)
         }
         if (isAbsolute(trimmed)) return if (trusted) LocalFileSystem.getInstance().findFileByPath(trimmed) else null
+        // `..` could leave the project folder: not in an untrusted project, where only its own files may be read.
+        if (!trusted && trimmed.replace('\\', '/').split('/').any { it == ".." }) return null
         return project.guessProjectDir()?.findFileByRelativePath(trimmed)
     }
 
