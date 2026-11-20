@@ -54,6 +54,7 @@ Ou installe le zip (`build/distributions/`) dans ton WebStorm et ouvre ce dossie
 | `'never-heard'` | signalé seulement si l'inspection *Event fired but never listened to* est activée (désactivée par défaut) |
 | taper `<` dans le template | complétion : `ui-badge`, `ui-icon` |
 | taper `@` sur `<app-toast …>` | complétion : `toast-shown`, `toast-closed` |
+| taper `.` ou un nom d'attribut sur `<app-toast …>` | complétion des propriétés : `.message`, `message` |
 | Shift+F6 sur la clé `'ui-badge'` | renomme aussi `<ui-badge>…</ui-badge>` |
 | Alt+F7 sur la clé `'ui-badge'` | liste les usages dans les templates |
 | survol de `<ui-badge>` | classe, fichier et enregistrement |

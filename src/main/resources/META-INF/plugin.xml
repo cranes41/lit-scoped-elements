@@ -13,7 +13,8 @@
           and between <code>@my-event</code> bindings, <code>addEventListener</code>, and the code firing the event.
           Gutter icons for the same links.</li>
       <li><b>Find Usages and Rename</b> of <code>scopedElements</code> keys, updating the tags in templates.</li>
-      <li><b>Completion</b> of scoped tag names and of the events an element fires.</li>
+      <li><b>Completion</b> of scoped tag names, of the events an element fires, and of its reactive properties
+          (<code>.prop</code>, <code>attribute</code>, and <code>?attribute</code>).</li>
       <li><b>Quick documentation</b> on a tag: the class it resolves to and where it is registered.</li>
       <li><b>Inspections</b>: elements missing from <code>scopedElements</code> (the quick fix adds the entry and the
           import), unused entries, events listened to but never fired, and events fired but never listened to.</li>
@@ -37,6 +38,8 @@
                                 implementationClass="io.github.litscoped.ScopedTagCompletionContributor"/>
         <completion.contributor language="any" order="first"
                                 implementationClass="io.github.litscoped.ScopedEventCompletionContributor"/>
+        <completion.contributor language="any" order="first"
+                                implementationClass="io.github.litscoped.PropertyCompletionContributor"/>
         <codeInsight.lineMarkerProvider language="JavaScript"
                                         implementationClass="io.github.litscoped.JsLitLineMarkerProvider"/>
         <codeInsight.lineMarkerProvider language="HTML"

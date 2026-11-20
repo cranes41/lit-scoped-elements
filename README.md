@@ -39,6 +39,10 @@ class MyCard extends ScopedElementsMixin(LitElement) {
 ### Completion
 - `<` in a template suggests the tags available in `scopedElements` (inherited and spread entries included).
 - `@` on an element suggests the events its class fires.
+- Attribute names on an element suggest its class's reactive properties (`static properties`, the
+  `static get properties()` getter, or `@property()`, inherited ones included; `state` properties are left out):
+  `.prop=${…}` bindings, `attribute=""` (the lowercased name or the `attribute` option), and `?attribute=${…}` for
+  `Boolean` properties. Properties already bound on the element are not suggested again.
 
 ### Inspections (Settings → Editor → Inspections → JavaScript and TypeScript → Lit / Open WC)
 - **Custom element is not declared in scopedElements**: the quick fix adds the entry with the real class (one
