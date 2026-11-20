@@ -90,7 +90,12 @@ Requires JDK 25. Gradle downloads one if none is installed.
 ./gradlew buildPlugin            # -> build/distributions/lit-scoped-elements-<version>.zip
 ./gradlew test
 ./gradlew runIde                 # starts a sandbox WebStorm with the plugin
+./gradlew runIde -Pscreenshots   # regenerates the Marketplace screenshots in build/screenshots, then exits
 ```
+
+`-Pscreenshots` adds a development-only tour (`src/screenshots`) that runs on a copy of `sample-project`, triggers
+each feature with the IDE's own actions, and paints the IDE windows to PNG. The published plugin never contains it.
+The current screenshots are in [`docs/screenshots`](docs/screenshots).
 
 To build against a local WebStorm instead of downloading it, and reuse its bundled JDK:
 

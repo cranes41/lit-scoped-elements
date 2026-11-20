@@ -1,4 +1,4 @@
-<idea-plugin>
+<idea-plugin xmlns:xi="http://www.w3.org/2001/XInclude">
     <id>io.github.litscoped.scoped-elements</id>
     <name>Lit Scoped Elements</name>
     <vendor>lit-scoped-elements</vendor>
@@ -97,4 +97,9 @@
                          level="WEAK WARNING"
                          implementationClass="io.github.litscoped.UnheardEventInspection"/>
     </extensions>
+
+    <!-- Development only: present in builds made with -Pscreenshots (see build.gradle.kts). -->
+    <xi:include href="/META-INF/screenshots.xml" xpointer="xpointer(/idea-plugin/*)">
+        <xi:fallback/>
+    </xi:include>
 </idea-plugin>
