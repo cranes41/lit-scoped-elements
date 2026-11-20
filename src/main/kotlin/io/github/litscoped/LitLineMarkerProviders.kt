@@ -39,6 +39,10 @@ private fun marker(
  */
 class JsLitLineMarkerProvider : RelatedItemLineMarkerProvider() {
 
+    override fun getName(): String = LitBundle.message("gutter.js.name")
+
+    override fun getIcon(): Icon = AllIcons.Nodes.Tag
+
     override fun collectNavigationMarkers(element: PsiElement, result: MutableCollection<in RelatedItemLineMarkerInfo<*>>) {
         if (element !is LeafPsiElement) return
         val parent = element.parent
@@ -49,7 +53,7 @@ class JsLitLineMarkerProvider : RelatedItemLineMarkerProvider() {
             val literal = parent.parent as? JSObjectLiteralExpression ?: return
             if (!ScopedElements.isCustomElementName(tagName) || !ScopedElements.isScopedElementsObject(literal)) return
             val usages = ScopedElementUsagesGotoHandler.findTagUsages(parent, tagName)
-            marker(element, AllIcons.Nodes.Tag, usages, "Used in ${count(usages.size, "template")}: <$tagName>", "Templates using <$tagName>", result)
+            marker(element, AllIcons.Nodes.Tag, usages, LitBundle.message("gutter.tag.usages.tooltip", usages.size, tagName), LitBundle.message("gutter.tag.usages.title", tagName), result)
             return
         }
 
@@ -59,18 +63,22 @@ class JsLitLineMarkerProvider : RelatedItemLineMarkerProvider() {
         if (literal.firstChild != element) return
         LitEvents.dispatchedEventName(literal)?.let { name ->
             val listeners = LitEvents.findListeners(element.project, name)
-            marker(element, AllIcons.Nodes.Lambda, listeners, "Listened to in ${count(listeners.size, "place")}: '$name'", "Listeners of '$name'", result)
+            marker(element, AllIcons.Nodes.Lambda, listeners, LitBundle.message("gutter.listeners.tooltip", listeners.size, name), LitBundle.message("gutter.listeners.title", name), result)
             return
         }
         LitEvents.listenedEventName(literal)?.let { name ->
             val dispatches = LitEvents.findDispatches(element.project, name)
-            marker(element, AllIcons.Nodes.Lambda, dispatches, "Fired in ${count(dispatches.size, "place")}: '$name'", "Dispatches of '$name'", result)
+            marker(element, AllIcons.Nodes.Lambda, dispatches, LitBundle.message("gutter.dispatches.tooltip", dispatches.size, name), LitBundle.message("gutter.dispatches.title", name), result)
         }
     }
 }
 
 /** Gutter icon on `@event` attributes of Lit templates (in the injected HTML) → where the event is fired. */
 class TemplateEventLineMarkerProvider : RelatedItemLineMarkerProvider() {
+
+    override fun getName(): String = LitBundle.message("gutter.template.name")
+
+    override fun getIcon(): Icon = AllIcons.Nodes.Lambda
 
     override fun collectNavigationMarkers(element: PsiElement, result: MutableCollection<in RelatedItemLineMarkerInfo<*>>) {
         if (element !is LeafPsiElement) return
@@ -84,9 +92,7 @@ class TemplateEventLineMarkerProvider : RelatedItemLineMarkerProvider() {
         val name = attribute.name.removePrefix("@")
         val classes = ScopedElements.resolveTagClasses(template, tag.name)
         val dispatches = LitEvents.findDispatches(element.project, name, classes)
-        marker(element, AllIcons.Nodes.Lambda, dispatches, "Fired in ${count(dispatches.size, "place")}: '$name'", "Dispatches of '$name'", result)
+        marker(element, AllIcons.Nodes.Lambda, dispatches, LitBundle.message("gutter.dispatches.tooltip", dispatches.size, name), LitBundle.message("gutter.dispatches.title", name), result)
     }
 }
-
-private fun count(n: Int, noun: String) = if (n == 1) "1 $noun" else "$n ${noun}s"
 

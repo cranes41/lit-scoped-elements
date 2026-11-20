@@ -33,8 +33,8 @@ class MissingScopedElementInspection : LocalInspectionTool() {
     var ignoreGlobalElements: Boolean = true
 
     override fun getOptionsPane(): OptPane = pane(
-        checkbox("ignoreGlobalElements", "Ignore elements defined globally (customElements.define, @customElement)"),
-        stringList("ignoredTags", "Ignored tag names (regular expressions, e.g. 'sl-.*'):"),
+        checkbox("ignoreGlobalElements", LitBundle.message("inspection.missing.option.ignore.global")),
+        stringList("ignoredTags", LitBundle.message("inspection.missing.option.ignored.tags")),
     )
 
     override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
@@ -62,11 +62,13 @@ class MissingScopedElementInspection : LocalInspectionTool() {
                             AddToScopedElementsFix(tag.name, cls.name.takeIf { qualify }, SmartPointerManager.createPointer(literal), elementClass)
                         }
                     }
-                    val where = missingIn.joinToString(", ") { "${it.name ?: "the class"}.scopedElements" }
+                    val where = missingIn.joinToString(", ") {
+                        LitBundle.message("inspection.missing.scoped.elements.of", it.name ?: LitBundle.message("inspection.missing.the.class"))
+                    }
                     holder.registerProblem(
                         element,
                         tag.range,
-                        "Custom element <${tag.name}> is not declared in $where",
+                        LitBundle.message("inspection.missing.message", tag.name, where),
                         *fixes.toTypedArray<LocalQuickFix>(),
                     )
                 }

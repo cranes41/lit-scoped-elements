@@ -39,7 +39,7 @@ class ScopedEventCompletionContributor : CompletionContributor() {
         for ((event, className) in events.distinctBy { it.first }) {
             val lookup = LookupElementBuilder.create("@$event")
                 .withIcon(AllIcons.Nodes.Lambda)
-                .withTypeText(className ?: "event", true)
+                .withTypeText(className ?: LitBundle.message("completion.type.event"), true)
                 .withTailText("  fired by <${tag.name}>", true)
             matching.addElement(PrioritizedLookupElement.withPriority(lookup, 100.0))
         }

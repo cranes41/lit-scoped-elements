@@ -44,7 +44,7 @@ class UnknownEventInspection : LocalInspectionTool() {
     var ignoredEvents: MutableList<String> = mutableListOf()
 
     override fun getOptionsPane(): OptPane = pane(
-        stringList("ignoredEvents", "Ignored event names (regular expressions, e.g. 'sl-.*'):"),
+        stringList("ignoredEvents", LitBundle.message("inspection.unknown.event.option.ignored")),
     )
 
     override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
@@ -58,7 +58,7 @@ class UnknownEventInspection : LocalInspectionTool() {
                     if (LitEvents.findDispatches(element.project, name).isNotEmpty()) continue
                     holder.registerProblem(
                         element,
-                        "Nothing in the project fires '$name'",
+                        LitBundle.message("inspection.unknown.event.message", name),
                         ProblemHighlightType.WEAK_WARNING,
                         binding.range,
                     )
@@ -79,7 +79,7 @@ class UnheardEventInspection : LocalInspectionTool() {
             val literal = element as? JSLiteralExpression ?: return
             val name = LitEvents.dispatchedEventName(literal) ?: return
             if (LitEvents.findListeners(element.project, name).isNotEmpty()) return
-            holder.registerProblem(literal, "Nothing in the project listens to '$name'", ProblemHighlightType.WEAK_WARNING)
+            holder.registerProblem(literal, LitBundle.message("inspection.unheard.event.message", name), ProblemHighlightType.WEAK_WARNING)
         }
     }
 }

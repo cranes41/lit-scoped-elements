@@ -10,25 +10,25 @@ import com.intellij.ui.dsl.builder.COLUMNS_LARGE
 import com.intellij.ui.dsl.builder.panel
 
 /** Settings | Languages & Frameworks | Lit Scoped Elements */
-class LitSettingsConfigurable(private val project: Project) : BoundConfigurable("Lit Scoped Elements") {
+class LitSettingsConfigurable(private val project: Project) : BoundConfigurable(LitBundle.message("settings.display.name")) {
 
     override fun createPanel(): DialogPanel {
         val settings = LitSettings.getInstance(project)
         return panel {
-            group("Events") {
-                row("Event helper functions:") {
+            group(LitBundle.message("settings.group.events")) {
+                row(LitBundle.message("settings.event.helpers")) {
                     textField()
                         .columns(COLUMNS_LARGE)
                         .bindText(
                             { settings.eventHelpers.joinToString(", ") },
                             { text -> settings.eventHelpers = text.split(',') },
                         )
-                        .comment("Comma-separated. Calls such as <code>this.fire('my-event')</code> count as firing the event.")
+                        .comment(LitBundle.message("settings.event.helpers.comment"))
                 }
             }
-            group("Search") {
+            group(LitBundle.message("settings.group.search")) {
                 row {
-                    checkBox("Search libraries (node_modules) for event dispatches and global element definitions")
+                    checkBox(LitBundle.message("settings.search.libraries"))
                         .bindSelected({ settings.searchLibraries }, { settings.searchLibraries = it })
                 }
             }

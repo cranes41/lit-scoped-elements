@@ -29,7 +29,7 @@ class UnusedScopedElementInspection : LocalInspectionTool() {
 
             holder.registerProblem(
                 property.nameIdentifier ?: property,
-                "Scoped element <$tagName> is not used in any template",
+                LitBundle.message("inspection.unused.message", tagName),
                 ProblemHighlightType.LIKE_UNUSED_SYMBOL,
                 RemoveScopedElementFix(tagName),
             )
@@ -39,9 +39,9 @@ class UnusedScopedElementInspection : LocalInspectionTool() {
 
 class RemoveScopedElementFix(private val tagName: String) : PsiUpdateModCommandQuickFix() {
 
-    override fun getFamilyName(): String = "Remove unused scoped element"
+    override fun getFamilyName(): String = LitBundle.message("fix.remove.family")
 
-    override fun getName(): String = "Remove '$tagName' from scopedElements"
+    override fun getName(): String = LitBundle.message("fix.remove.name", tagName)
 
     override fun applyFix(project: Project, element: PsiElement, updater: ModPsiUpdater) {
         val property = element as? JSProperty ?: element.parent as? JSProperty ?: return

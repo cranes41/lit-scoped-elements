@@ -31,7 +31,9 @@ class MyCard extends ScopedElementsMixin(LitElement) {
 </p>
 <!-- tooltip end -->
 <p>
-  Use the <b>Ignored tag names</b> option to exclude globally registered elements (regular expressions).
+  Elements defined globally with <code>customElements.define</code> or <code>@customElement</code> in the project are
+  skipped (option <b>Ignore elements defined globally</b>). Use <b>Ignored tag names</b> (regular expressions) for
+  elements defined elsewhere, for example by a library.
 </p>
 </body>
 </html>

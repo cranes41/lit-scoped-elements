@@ -37,6 +37,7 @@ dependencies {
 intellijPlatform {
     pluginConfiguration {
         version = providers.gradleProperty("pluginVersion")
+        changeNotes = providers.fileContents(layout.projectDirectory.file("CHANGE_NOTES.html")).asText
         ideaVersion {
             sinceBuild = providers.gradleProperty("pluginSinceBuild")
             untilBuild = provider { null }

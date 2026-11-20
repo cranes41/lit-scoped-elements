@@ -4,23 +4,27 @@
     <vendor>lit-scoped-elements</vendor>
 
     <description><![CDATA[
-    Support for <a href="https://open-wc.org/docs/development/scoped-elements/">Open WC scoped elements</a>
-    and events in <a href="https://lit.dev">Lit</a> components.
+    Lit and Open WC scoped elements: navigation, inspections, and completion for
+    <a href="https://lit.dev">Lit</a> components using
+    <a href="https://open-wc.org/docs/development/scoped-elements/">Open WC scoped elements</a>, and their events.
     <ul>
       <li><b>Navigation</b>: from a tag in an <code>html`...`</code> template to the class registered in
           <code>scopedElements</code> (or globally), from a <code>scopedElements</code> key to the templates using it,
-          and between <code>@my-event</code> bindings, <code>addEventListener</code> and the code firing the event.
+          and between <code>@my-event</code> bindings, <code>addEventListener</code>, and the code firing the event.
           Gutter icons for the same links.</li>
       <li><b>Find Usages and Rename</b> of <code>scopedElements</code> keys, updating the tags in templates.</li>
       <li><b>Completion</b> of scoped tag names and of the events an element fires.</li>
-      <li><b>Hover</b> on a tag: the class it resolves to and where it is registered.</li>
-      <li><b>Inspections</b>: elements missing from <code>scopedElements</code> (quick fix adds the entry and the
-          import), unused entries, events listened to but never fired, events fired but never listened to.</li>
+      <li><b>Quick documentation</b> on a tag: the class it resolves to and where it is registered.</li>
+      <li><b>Inspections</b>: elements missing from <code>scopedElements</code> (the quick fix adds the entry and the
+          import), unused entries, events listened to but never fired, and events fired but never listened to.</li>
     </ul>
     Understands field and getter declarations, spreads, inheritance (mixins included), templates rendered by
-    functions outside the class, <code>customElements.define</code> / <code>@customElement</code>, event helper
-    calls and <code>Event</code> subclasses, in JavaScript and TypeScript.
+    functions outside the class, <code>customElements.define</code> and <code>@customElement</code>, event helper
+    calls, and <code>Event</code> subclasses, in JavaScript and TypeScript.
+    Settings: <i>Settings | Languages &amp; Frameworks | Lit Scoped Elements</i>.
     ]]></description>
+
+    <resource-bundle>messages.LitBundle</resource-bundle>
 
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.xml</depends>
@@ -44,7 +48,7 @@
         <projectConfigurable parentId="language"
                              instance="io.github.litscoped.LitSettingsConfigurable"
                              id="io.github.litscoped.settings"
-                             displayName="Lit Scoped Elements"/>
+                             key="settings.display.name"/>
 
         <gotoDeclarationHandler order="first"
                                 implementation="io.github.litscoped.ScopedElementGotoDeclarationHandler"/>
@@ -56,36 +60,36 @@
         <localInspection language="JavaScript"
                          applyToDialects="true"
                          shortName="LitMissingScopedElement"
-                         displayName="Custom element is not declared in scopedElements"
+                         key="inspection.missing.display.name"
                          groupPath="JavaScript and TypeScript"
-                         groupName="Lit / Open WC"
+                         groupKey="inspection.group.name"
                          enabledByDefault="true"
                          level="WARNING"
                          implementationClass="io.github.litscoped.MissingScopedElementInspection"/>
         <localInspection language="JavaScript"
                          applyToDialects="true"
                          shortName="LitUnusedScopedElement"
-                         displayName="Unused scopedElements entry"
+                         key="inspection.unused.display.name"
                          groupPath="JavaScript and TypeScript"
-                         groupName="Lit / Open WC"
+                         groupKey="inspection.group.name"
                          enabledByDefault="true"
                          level="WARNING"
                          implementationClass="io.github.litscoped.UnusedScopedElementInspection"/>
         <localInspection language="JavaScript"
                          applyToDialects="true"
                          shortName="LitUnknownEvent"
-                         displayName="Event listened to but never fired"
+                         key="inspection.unknown.event.display.name"
                          groupPath="JavaScript and TypeScript"
-                         groupName="Lit / Open WC"
+                         groupKey="inspection.group.name"
                          enabledByDefault="true"
                          level="WEAK WARNING"
                          implementationClass="io.github.litscoped.UnknownEventInspection"/>
         <localInspection language="JavaScript"
                          applyToDialects="true"
                          shortName="LitUnheardEvent"
-                         displayName="Event fired but never listened to"
+                         key="inspection.unheard.event.display.name"
                          groupPath="JavaScript and TypeScript"
-                         groupName="Lit / Open WC"
+                         groupKey="inspection.group.name"
                          enabledByDefault="false"
                          level="WEAK WARNING"
                          implementationClass="io.github.litscoped.UnheardEventInspection"/>

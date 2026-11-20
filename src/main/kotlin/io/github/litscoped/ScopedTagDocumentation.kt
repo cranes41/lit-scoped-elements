@@ -55,7 +55,7 @@ class ScopedTagDocumentationTarget(
             val how = if (definition.site.text.startsWith("customElements") || definition.site.text.contains(".define(")) {
                 "customElements.define"
             } else "@customElement"
-            Registration(cls?.name ?: "?", cls?.containingFile?.name ?: definition.site.containingFile.name, "global ($how)")
+            Registration(cls?.name ?: "?", cls?.containingFile?.name ?: definition.site.containingFile.name, LitBundle.message("doc.registration.global", how))
         }.distinct()
     }
 
@@ -81,12 +81,12 @@ class ScopedTagDocumentationTarget(
             append(DocumentationMarkup.DEFINITION_END)
             append(DocumentationMarkup.SECTIONS_START)
             for (registration in registrations()) {
-                append(DocumentationMarkup.SECTION_HEADER_START).append("Class")
+                append(DocumentationMarkup.SECTION_HEADER_START).append(LitBundle.message("doc.section.class"))
                 append(DocumentationMarkup.SECTION_SEPARATOR)
                 append("<b>").append(esc(registration.elementClass)).append("</b>")
                 registration.file?.let { append(" — ").append(esc(it)) }
                 append(DocumentationMarkup.SECTION_END)
-                append(DocumentationMarkup.SECTION_HEADER_START).append("Registered in")
+                append(DocumentationMarkup.SECTION_HEADER_START).append(LitBundle.message("doc.section.registered"))
                 append(DocumentationMarkup.SECTION_SEPARATOR).append(esc(registration.source))
                 append(DocumentationMarkup.SECTION_END)
             }

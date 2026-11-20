@@ -25,10 +25,10 @@ class AddToScopedElementsFix(
     private val elementClass: SmartPsiElementPointer<JSClass>? = null,
 ) : PsiUpdateModCommandQuickFix() {
 
-    override fun getFamilyName(): String = "Add to scopedElements"
+    override fun getFamilyName(): String = LitBundle.message("fix.add.family")
 
     override fun getName(): String =
-        if (className != null) "Add '$tagName' to $className.scopedElements" else "Add '$tagName' to scopedElements"
+        if (className != null) LitBundle.message("fix.add.name.qualified", tagName, className) else LitBundle.message("fix.add.name", tagName)
 
     override fun applyFix(project: Project, element: PsiElement, updater: ModPsiUpdater) {
         val literal = literalPointer.element?.let(updater::getWritable) ?: return
