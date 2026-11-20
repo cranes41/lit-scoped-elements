@@ -71,6 +71,21 @@ class EventSourcePathsTest : BasePlatformTestCase() {
         assertNull(EventSources.resolve(project, "does/not/exist"))
     }
 
+    fun testUntrustedOrBroadPathsAreRejected() {
+        // Only local files: other URL schemes are ignored.
+        assertNull(EventSources.resolve(project, "http://example.com/events.js"))
+        assertNull(EventSources.resolve(project, "jar:///some.jar!/events.js"))
+        // Never a filesystem root or the home folder (or a folder containing it).
+        val home = com.intellij.openapi.vfs.LocalFileSystem.getInstance().findFileByPath(System.getProperty("user.home"))!!
+        assertFalse(EventSources.isAcceptable(home))
+        assertFalse(EventSources.isAcceptable(home.parent))
+        var root = home
+        while (root.parent != null) root = root.parent
+        assertFalse(EventSources.isAcceptable(root))
+        LitSettings.getInstance(project).eventSources = listOf(home.path, root.path)
+        assertEmpty(EventSources.roots(project))
+    }
+
     private fun folder(name: String, fileName: String, content: String): VirtualFile {
         val dir = WriteAction.computeAndWait<VirtualFile, Exception> {
             LightPlatformTestCase.getSourceRoot().parent.let { it.findChild(name) ?: it.createChildDirectory(this, name) }

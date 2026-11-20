@@ -1,5 +1,6 @@
 package io.github.litscoped
 
+import com.intellij.ide.trustedProjects.TrustedProjects
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.guessProjectDir
 import com.intellij.openapi.roots.AdditionalLibraryRootsProvider
@@ -18,18 +19,42 @@ import java.io.File
  */
 object EventSources {
 
-    /** The configured files and folders that exist. */
-    fun roots(project: Project): List<VirtualFile> =
-        LitSettings.getInstance(project).eventSources.mapNotNull { resolve(project, it) }.distinct()
+    /**
+     * The configured files and folders that exist and are acceptable (see [isAcceptable]).
+     *
+     * The settings file can be committed with a project, so its paths are not trusted blindly: only local files,
+     * never a whole drive or home folder, and nothing outside the project until the project is trusted.
+     */
+    fun roots(project: Project): List<VirtualFile> {
+        val base = project.guessProjectDir()
+        val trusted = TrustedProjects.isProjectTrusted(project)
+        return LitSettings.getInstance(project).eventSources
+            .mapNotNull { resolve(project, it) }
+            .filter { isAcceptable(it) && (trusted || (base != null && VfsUtilCore.isAncestor(base, it, false))) }
+            .distinct()
+    }
 
-    /** [path] as a file: a URL, an absolute path, or a path relative to the project folder. */
+    /** [path] as a local file: a `file://` URL, an absolute path, or a path relative to the project folder. */
     fun resolve(project: Project, path: String): VirtualFile? {
         val trimmed = path.trim()
         if (trimmed.isEmpty()) return null
-        if ("://" in trimmed) return VirtualFileManager.getInstance().findFileByUrl(trimmed)
+        if ("://" in trimmed) {
+            val scheme = trimmed.substringBefore("://")
+            return if (scheme in LOCAL_SCHEMES) VirtualFileManager.getInstance().findFileByUrl(trimmed) else null
+        }
         if (File(trimmed).isAbsolute) return LocalFileSystem.getInstance().findFileByPath(trimmed)
         return project.guessProjectDir()?.findFileByRelativePath(trimmed)
     }
+
+    /** False for roots too broad to index: a filesystem root, the home folder, or a folder containing it. */
+    fun isAcceptable(file: VirtualFile): Boolean {
+        if (file.parent == null) return false
+        val home = System.getProperty("user.home")?.let { LocalFileSystem.getInstance().findFileByPath(it) } ?: return true
+        return !VfsUtilCore.isAncestor(file, home, false)
+    }
+
+    /** `file` for real files; `temp` is the in-memory file system of tests. */
+    private val LOCAL_SCHEMES = setOf("file", "temp")
 
     /** How a chosen file is stored: relative to the project folder when inside it, absolute otherwise. */
     fun pathOf(project: Project, file: VirtualFile): String {
