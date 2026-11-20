@@ -246,10 +246,10 @@ object LitEvents {
                     // Event subclass: the events are fired where the class is instantiated.
                     val eventClass = PsiTreeUtil.getParentOfType(call, JSClass::class.java)!!
                     val instantiations = instantiationsOf(eventClass)
-                    if (instantiations.isEmpty()) all += argument to eventClass
-                    else instantiations.forEach { all += it to PsiTreeUtil.getParentOfType(it, JSClass::class.java) }
+                    if (instantiations.isEmpty()) all += codeLocation(argument) to eventClass
+                    else instantiations.forEach { all += codeLocation(it) to PsiTreeUtil.getParentOfType(it, JSClass::class.java) }
                 } else {
-                    all += argument to PsiTreeUtil.getParentOfType(call, JSClass::class.java)
+                    all += codeLocation(argument) to PsiTreeUtil.getParentOfType(call, JSClass::class.java)
                 }
             }
         }
@@ -270,12 +270,36 @@ object LitEvents {
         return all.distinctBy { it.first }
     }
 
+    /**
+     * A navigation target for an event name or `new` expression in JS code, presented with its call, as
+     * `this.addEventListener('my-event', …)`, and its file and line (a bare literal shows neither).
+     */
+    private fun codeLocation(element: PsiElement): PsiElement =
+        TemplateLocation(element, TextRange(0, element.textLength), callSummary(element))
+
+    private fun callSummary(element: PsiElement): String {
+        val summary = if (element is JSNewExpression) element.text else {
+            val call = callOfFirstArgument(element as JSExpression)
+            if (call == null) element.text
+            else {
+                val callee = call.methodExpression?.text.orEmpty()
+                val more = if (call.arguments.size > 1) ", …" else ""
+                (if (call is JSNewExpression) "new " else "") + "$callee(${element.text}$more)"
+            }
+        }
+        val oneLine = summary.replace(Regex("""\s+"""), " ")
+        return if (oneLine.length > 80) oneLine.take(77) + "…" else oneLine
+    }
+
     /** Names of the entries of TypeScript event maps declaring [eventName]. */
     private fun eventMapEntries(project: Project, eventName: String): List<PsiElement> {
         val result = mutableListOf<PsiElement>()
         for (file in ProjectSearch.filesWithAnyKey(project, listOf(LitIndex.string(eventName)))) {
             for (signature in PsiTreeUtil.findChildrenOfType(file, TypeScriptPropertySignature::class.java)) {
-                if (signature.name == eventName && isEventMapEntry(signature)) result += signature.nameIdentifier ?: signature
+                if (signature.name != eventName || !isEventMapEntry(signature)) continue
+                val name = signature.nameIdentifier ?: signature
+                val map = PsiTreeUtil.getParentOfType(signature, TypeScriptInterface::class.java)?.name
+                result += TemplateLocation(name, TextRange(0, name.textLength), "$map[${name.text}]")
             }
         }
         return result
@@ -300,7 +324,7 @@ object LitEvents {
             for (call in PsiTreeUtil.findChildrenOfType(file, JSCallExpression::class.java)) {
                 if (call is JSNewExpression || calleeName(call) != ADD_LISTENER) continue
                 val argument = call.arguments.firstOrNull() ?: continue
-                if (evaluateName(argument) == eventName) result += argument
+                if (evaluateName(argument) == eventName) result += codeLocation(argument)
             }
         }
         return result
