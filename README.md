@@ -53,7 +53,8 @@ class MyCard extends ScopedElementsMixin(LitElement) {
 - `static scopedElements = {...}` and `static get scopedElements() { return {...}; }`, including getters with
   several `return` branches (each branch is a possible registry).
 - Spreads: `...super.scopedElements`, `...OtherElement.scopedElements`, `...sharedConstObject`.
-- Inheritance, including through mixins (`class A extends SomeMixin(Base)`). A template in `Base.render()` also
+- Inheritance, including through mixins (`class A extends SomeMixin(Base)`), also when the mixin is applied in a
+  variable (`const Mixed = SomeMixin(Base); class A extends Mixed {}`, imported or chained). A template in `Base.render()` also
   belongs to subclasses that don't redefine `render()` or call `super.render()`, with *their* `scopedElements`.
 - **Sub render functions**: a template in a function or variable outside the class
   (`function renderRow() { return html`...` }`) belongs to every class calling it, directly or through other
@@ -69,7 +70,6 @@ class MyCard extends ScopedElementsMixin(LitElement) {
 
 ### Limits
 - Tags built at runtime (`unsafeStatic`) aren't seen.
-- A mixin applied through a variable (`const Mixed = M(Base); class A extends Mixed {}`) isn't followed.
 - A helper called with a constant event name is only found if its name contains `event`, `fire`, `emit`,
   `dispatch` or `listen`.
 

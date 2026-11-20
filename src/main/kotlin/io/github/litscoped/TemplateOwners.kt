@@ -86,14 +86,14 @@ object TemplateOwners {
     }
 
     /**
-     * Direct subclasses of [cls]: `extends Base` from the inheritance index, plus `extends SomeMixin(Base)`,
-     * which the index can't see (it only records a class name written after `extends`, not a call), found by
-     * searching the references to [cls].
+     * Direct subclasses of [cls]: `extends Base` from the inheritance index, plus `extends SomeMixin(Base)` and
+     * `const Mixed = SomeMixin(Base)` + `extends Mixed`, which the index can't see (it only records a class name
+     * written after `extends`, not a call), found by searching the references to [cls].
      */
     private fun directSubclasses(cls: JSClass, scope: GlobalSearchScope): Set<JSClass> {
         val result = LinkedHashSet<JSClass>(JSClassSearch.searchClassInheritors(cls, false, scope).findAll())
         for (reference in ReferencesSearch.search(cls, scope).findAll()) {
-            ScopedElements.classExtendingThroughMixin(reference.element)?.takeIf { it != cls }?.let(result::add)
+            ScopedElements.classesExtendingThroughMixin(reference.element, scope).filterTo(result) { it != cls }
         }
         return result
     }

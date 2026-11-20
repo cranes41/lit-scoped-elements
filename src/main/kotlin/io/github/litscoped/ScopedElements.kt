@@ -51,6 +51,7 @@ data class TagOccurrence(val name: String, val range: TextRange, val closing: Bo
 object ScopedElements {
     const val MEMBER_NAME = "scopedElements"
     private const val MIXIN_NAME = "ScopedElementsMixin"
+    private const val MAX_VARIABLE_DEPTH = 5
     private const val MAX_DEPTH = 16
     private const val MAX_SPREAD_DEPTH = 4
 
@@ -138,7 +139,7 @@ object ScopedElements {
     private fun computeUsesScopedElements(cls: JSClass, visited: MutableSet<JSClass>): Boolean {
         if (!visited.add(cls)) return false
         if (findDeclarationExpressions(cls).isNotEmpty()) return true
-        if (cls.extendsList?.text?.contains(MIXIN_NAME) == true) return true
+        if (extendsExpressions(cls).any { it.text.contains(MIXIN_NAME) }) return true
         return superClassesOf(cls).any { computeUsesScopedElements(it, visited) }
     }
 
@@ -266,14 +267,16 @@ object ScopedElements {
      *
      * For `class A extends SomeMixin(Base)`, the IDE's type analysis often stops at the anonymous class the
      * mixin returns (always in plain JavaScript), so `Base` is added from the call arguments. Nested mixins,
-     * `extends A(B(Base))`, are handled too. The direct super classes come first.
+     * `extends A(B(Base))`, and mixins applied in a variable, `const Mixed = SomeMixin(Base)` +
+     * `extends Mixed` (possibly imported, or a chain of variables), are handled too. The direct super classes
+     * come first.
      */
     fun superClassesOf(cls: JSClass): List<JSClass> {
         val result = LinkedHashSet<JSClass>(cls.superClasses.toList())
-        val extendsList = cls.extendsList ?: return result.toList()
-        for (call in PsiTreeUtil.findChildrenOfType(extendsList, JSCallExpression::class.java)) {
-            for (argument in call.arguments) {
-                val resolved = (unwrap(argument) as? JSReferenceExpression)?.let(::resolveDeep)
+        for (expression in extendsExpressions(cls)) {
+            for (reference in referencesIn(expression)) {
+                if (isCallee(reference)) continue
+                val resolved = resolveDeep(reference)
                 if (resolved is JSClass && resolved != cls) result += resolved
             }
         }
@@ -281,15 +284,72 @@ object ScopedElements {
     }
 
     /**
-     * True when [reference] (to a class) is a mixin argument in the `extends` clause of a class, as `Base` in
-     * `class A extends SomeMixin(Base)`; returns that class.
+     * The `extends` expression of [cls], followed by the initializers of the variables it goes through:
+     * for `const Mixed = SomeMixin(Base)` + `class A extends Mixed`, `Mixed` then `SomeMixin(Base)`.
      */
-    fun classExtendingThroughMixin(reference: PsiElement): JSClass? {
-        if (reference.parent !is JSArgumentList) return null
-        val cls = PsiTreeUtil.getParentOfType(reference, JSClass::class.java) ?: return null
-        val extendsList = cls.extendsList ?: return null
-        return if (PsiTreeUtil.isAncestor(extendsList, reference, true)) cls else null
+    private fun extendsExpressions(cls: JSClass): List<JSExpression> {
+        val extendsList = cls.extendsList ?: return emptyList()
+        val result = ArrayList<JSExpression>()
+        val visited = HashSet<JSVariable>()
+        fun visit(expression: JSExpression, depth: Int) {
+            result += expression
+            if (depth >= MAX_VARIABLE_DEPTH) return
+            for (reference in referencesIn(expression)) {
+                if (isCallee(reference)) continue
+                val variable = resolveDeep(reference) as? JSVariable ?: continue
+                if (!visited.add(variable)) continue
+                variable.initializer?.let { visit(it, depth + 1) }
+            }
+        }
+        // The outermost expressions (they are wrapped in list members, not direct children).
+        for (expression in PsiTreeUtil.findChildrenOfType(extendsList, JSExpression::class.java)) {
+            if (expression.parent !is JSExpression) visit(expression, 0)
+        }
+        return result
     }
+
+    /**
+     * The classes extending the class referenced by [reference] through a mixin: `class A extends SomeMixin(Base)`,
+     * or through variables holding the mixin result, `const Mixed = SomeMixin(Base)` + `class A extends Mixed`
+     * (variables are followed with a reference search, so imports and chains of variables work).
+     * Plain `extends Base` is left to the inheritance index.
+     */
+    fun classesExtendingThroughMixin(reference: PsiElement, scope: GlobalSearchScope): List<JSClass> {
+        val result = LinkedHashSet<JSClass>()
+        val visited = HashSet<JSVariable>()
+        fun visit(element: PsiElement, depth: Int) {
+            ProgressManager.checkCanceled()
+            val parent = element.parent
+            val inCall = parent is JSArgumentList
+            val cls = PsiTreeUtil.getParentOfType(element, JSClass::class.java)
+            val extendsList = cls?.extendsList
+            if (extendsList != null && PsiTreeUtil.isAncestor(extendsList, element, true)) {
+                // Directly after `extends`, it is a plain subclass only for the first, non-variable level.
+                if (inCall || depth > 0) result += cls
+                return
+            }
+            if (depth >= MAX_VARIABLE_DEPTH) return
+            // `const Mixed = SomeMixin(Base)` (or a plain alias, `const Alias = Mixed`).
+            val variable = PsiTreeUtil.getParentOfType(element, JSVariable::class.java) ?: return
+            val initializer = variable.initializer ?: return
+            val isValue = inCall || unwrap(initializer) == element
+            if (!isValue || !PsiTreeUtil.isAncestor(initializer, element, false) || !visited.add(variable)) return
+            for (usage in ReferencesSearch.search(variable, scope).findAll()) visit(usage.element, depth + 1)
+        }
+        visit(reference, 0)
+        return result.toList()
+    }
+
+    private fun referencesIn(expression: JSExpression): List<JSReferenceExpression> {
+        val result = ArrayList<JSReferenceExpression>()
+        unwrap(expression)?.let { if (it is JSReferenceExpression) result += it }
+        result += PsiTreeUtil.findChildrenOfType(expression, JSReferenceExpression::class.java)
+        return result
+    }
+
+    /** True for `SomeMixin` in `SomeMixin(Base)`: the mixin itself, not a class. */
+    private fun isCallee(reference: JSReferenceExpression): Boolean =
+        (reference.parent as? JSCallExpression)?.methodExpression == reference
 
     // ------------------------------------------------------------- navigation
 

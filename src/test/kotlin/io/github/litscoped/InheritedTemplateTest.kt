@@ -1,6 +1,7 @@
 package io.github.litscoped
 
 import com.intellij.lang.javascript.psi.ecmal4.JSClass
+import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 
 /** A template written in a base class is rendered by subclasses too, with their own scopedElements. */
@@ -86,6 +87,32 @@ class InheritedTemplateTest : BasePlatformTestCase() {
             """.trimIndent(),
         )
         myFixture.addFileToProject(
+            "mixin-vars.js",
+            """
+            import { SomeMixin, OtherMixin } from './mixins.js';
+            import { Base } from './base.js';
+            export const Mixed = SomeMixin(Base);
+            const Twice = OtherMixin(Mixed);
+            // Mixin applied in a variable.
+            export class ViaVariable extends Mixed {
+              static scopedElements = {};
+            }
+            // A chain of variables, inheriting Base's registry: <child-el> is declared.
+            export class ViaVariableChain extends Twice {}
+            """.trimIndent(),
+        )
+        myFixture.addFileToProject(
+            "mixin-vars-user.js",
+            """
+            import { OtherMixin } from './mixins.js';
+            import { Mixed } from './mixin-vars.js';
+            // The variable imported from another file, under another mixin.
+            export class ViaImportedVariable extends OtherMixin(Mixed) {
+              static scopedElements = {};
+            }
+            """.trimIndent(),
+        )
+        myFixture.addFileToProject(
             "mixin-subs.ts",
             """
             import { Base } from './base.js';
@@ -105,8 +132,9 @@ class InheritedTemplateTest : BasePlatformTestCase() {
         ).first { ScopedElements.isLitHtmlTemplate(it) }
         assertEquals(
             listOf(
-                "Base", "BelowRemapped", "Missing", "Remapped",
-                "ViaMixin", "ViaMixinInherits", "ViaNestedMixins", "ViaTypedMixin", "Wrapping",
+                "Base", "BelowRemapped", "Missing", "Remapped", "ViaImportedVariable",
+                "ViaMixin", "ViaMixinInherits", "ViaNestedMixins", "ViaTypedMixin",
+                "ViaVariable", "ViaVariableChain", "Wrapping",
             ),
             TemplateOwners.findOwnerClasses(template).mapNotNull { it.name }.sorted(),
         )
@@ -121,8 +149,9 @@ class InheritedTemplateTest : BasePlatformTestCase() {
         // Both <child-el> tags: in render() and in the arrow callback inside it.
         assertEquals(
             List(2) {
-                "Custom element <child-el> is not declared in Missing.scopedElements, ViaMixin.scopedElements, " +
-                    "ViaNestedMixins.scopedElements, ViaTypedMixin.scopedElements, Wrapping.scopedElements"
+                "Custom element <child-el> is not declared in Missing.scopedElements, " +
+                    "ViaImportedVariable.scopedElements, ViaMixin.scopedElements, ViaNestedMixins.scopedElements, " +
+                    "ViaTypedMixin.scopedElements, ViaVariable.scopedElements, Wrapping.scopedElements"
             },
             warnings,
         )
@@ -140,5 +169,30 @@ class InheritedTemplateTest : BasePlatformTestCase() {
         val offset = file.text.indexOf("'child-el': OtherChild") + 2
         val targets = ScopedElementUsagesGotoHandler().getGotoDeclarationTargets(file.findElementAt(offset), offset, null)
         assertEquals(listOf("base.js", "base.js"), targets.orEmpty().map { it.containingFile.name })
+    }
+
+    fun testSuperClassesThroughMixinVariables() {
+        val file = myFixture.configureFromTempProjectFile("mixin-vars.js")
+        val chain = PsiTreeUtil.findChildrenOfType(file, JSClass::class.java).single { it.name == "ViaVariableChain" }
+        assertEquals(listOf("Base"), ScopedElements.superClassesOf(chain).mapNotNull { it.name })
+        // Base's registry is inherited: <child-el> is navigable from the chain's point of view.
+        assertEquals(listOf("child-el"), ScopedElements.getScopedElements(chain).keys.toList())
+    }
+
+    fun testScopedElementsMixinHeldInAVariable() {
+        myFixture.enableInspections(MissingScopedElementInspection())
+        myFixture.configureByText(
+            "scoped-var.js",
+            """
+            const Scoped = ScopedElementsMixin(LitElement);
+            class UsesVariable extends Scoped {
+              render() { return html`<not-declared></not-declared>`; }
+            }
+            """.trimIndent(),
+        )
+        val warnings = myFixture.doHighlighting(com.intellij.lang.annotation.HighlightSeverity.WARNING)
+            .mapNotNull { it.description }
+            .filter { it.contains("scopedElements") }
+        assertEquals(listOf("Custom element <not-declared> is not declared in UsesVariable.scopedElements"), warnings)
     }
 }
