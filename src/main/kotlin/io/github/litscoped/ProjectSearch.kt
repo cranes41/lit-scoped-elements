@@ -22,10 +22,10 @@ object ProjectSearch {
         else GlobalSearchScope.projectScope(project)
 
     /** JS/TS files in [scope] that have any of the [LitIndex] keys. */
-    fun filesWithAnyKey(project: Project, keys: Collection<String>): Collection<PsiFile> {
+    fun filesWithAnyKey(project: Project, keys: Collection<String>, scope: GlobalSearchScope = scope(project)): Collection<PsiFile> {
         val psiManager = PsiManager.getInstance(project)
         val files = LinkedHashSet<PsiFile>()
-        FileBasedIndex.getInstance().processFilesContainingAnyKey(LitIndex.NAME, keys, scope(project), null, null) { virtualFile ->
+        FileBasedIndex.getInstance().processFilesContainingAnyKey(LitIndex.NAME, keys, scope, null, null) { virtualFile ->
             ProgressManager.checkCanceled()
             psiManager.findFile(virtualFile)?.let(files::add)
             true

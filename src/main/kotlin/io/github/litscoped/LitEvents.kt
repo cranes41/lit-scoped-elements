@@ -236,7 +236,8 @@ object LitEvents {
 
     private fun computeDispatches(project: Project, eventName: String): List<Pair<PsiElement, JSClass?>> {
         val all = mutableListOf<Pair<PsiElement, JSClass?>>()
-        for (file in ProjectSearch.filesWithAnyKey(project, listOf(LitIndex.string(eventName), LitIndex.DYNAMIC))) {
+        val sources = EventSources.scope(project)
+        for (file in ProjectSearch.filesWithAnyKey(project, listOf(LitIndex.string(eventName), LitIndex.DYNAMIC), sources)) {
             ProgressManager.checkCanceled()
             for (call in PsiTreeUtil.findChildrenOfType(file, JSCallExpression::class.java)) {
                 if (!isDispatchCall(call)) continue
@@ -255,7 +256,7 @@ object LitEvents {
         }
         // `@fires` in the JSDoc of a class that fires nothing visible itself (a dispatch is a better target).
         val dispatchingClasses = all.mapNotNullTo(HashSet()) { it.second }
-        for (file in ProjectSearch.filesWithAnyKey(project, listOf(LitIndex.string(eventName)))) {
+        for (file in ProjectSearch.filesWithAnyKey(project, listOf(LitIndex.string(eventName)), sources)) {
             ProgressManager.checkCanceled()
             for (cls in PsiTreeUtil.findChildrenOfType(file, JSClass::class.java)) {
                 if (cls in dispatchingClasses) continue
@@ -294,7 +295,7 @@ object LitEvents {
     /** Names of the entries of TypeScript event maps declaring [eventName]. */
     private fun eventMapEntries(project: Project, eventName: String): List<PsiElement> {
         val result = mutableListOf<PsiElement>()
-        for (file in ProjectSearch.filesWithAnyKey(project, listOf(LitIndex.string(eventName)))) {
+        for (file in ProjectSearch.filesWithAnyKey(project, listOf(LitIndex.string(eventName)), EventSources.scope(project))) {
             for (signature in PsiTreeUtil.findChildrenOfType(file, TypeScriptPropertySignature::class.java)) {
                 if (signature.name != eventName || !isEventMapEntry(signature)) continue
                 val name = signature.nameIdentifier ?: signature
@@ -367,7 +368,7 @@ object LitEvents {
 
     /** `new EventClass(...)` expressions in the search scope. */
     private fun instantiationsOf(eventClass: JSClass): List<JSNewExpression> =
-        ReferencesSearch.search(eventClass, ProjectSearch.scope(eventClass.project)).findAll().mapNotNull { reference ->
+        ReferencesSearch.search(eventClass, EventSources.scope(eventClass.project)).findAll().mapNotNull { reference ->
             val newExpression = reference.element.parent as? JSNewExpression
             newExpression?.takeIf { it.methodExpression == reference.element }
         }

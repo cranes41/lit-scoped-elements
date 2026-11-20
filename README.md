@@ -75,6 +75,9 @@ class MyCard extends ScopedElementsMixin(LitElement) {
 
 ### Settings (Settings → Languages & Frameworks → Lit Scoped Elements)
 - **Event helper functions**: functions whose first argument is a fired event's name (default `fire`, `emit`).
+- **Event sources**: files and folders also searched for the code firing events, for example one package of
+  `node_modules` (lighter than *Search libraries*) or a folder outside the project, such as a sibling package of a
+  monorepo. Folders outside the project are indexed as the *Lit event sources* library (under *External Libraries*).
 - **Search libraries**: also search `node_modules` for dispatches and global element definitions.
 
 ### Limits

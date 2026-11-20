@@ -33,6 +33,7 @@
 
     <extensions defaultExtensionNs="com.intellij">
         <fileBasedIndex implementation="io.github.litscoped.LitIndex"/>
+        <additionalLibraryRootsProvider implementation="io.github.litscoped.EventSourcesLibraryProvider"/>
         <referencesSearch implementation="io.github.litscoped.ScopedTagReferenceSearcher"/>
         <completion.contributor language="any" order="first"
                                 implementationClass="io.github.litscoped.ScopedTagCompletionContributor"/>
