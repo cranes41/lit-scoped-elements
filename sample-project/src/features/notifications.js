@@ -26,7 +26,8 @@ import '../components/app-toast.js';
  *
  *  RENAME
  *  - Shift+F6 on the 'ui-badge' key → also renames <ui-badge>…</ui-badge> in the template.
- */export class NotificationCenter extends ScopedElementsMixin(LitElement) {
+ */
+export class NotificationCenter extends ScopedElementsMixin(LitElement) {
   static scopedElements = {
     'ui-badge': UiBadge,
     'ui-icon': UiIcon,

@@ -1,6 +1,7 @@
 package io.github.litscoped.screenshots
 
 import com.intellij.codeInsight.lookup.LookupManager
+import com.intellij.diagnostic.MessagePool
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.actionSystem.PlatformCoreDataKeys
@@ -21,6 +22,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.ProjectActivity
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.openapi.wm.WindowManager
 import com.intellij.psi.PsiDocumentManager
 import kotlinx.coroutines.Dispatchers
@@ -47,7 +49,9 @@ class ScreenshotTour : ProjectActivity {
         delay(3000)
         withContext(Dispatchers.EDT) {
             val frame = WindowManager.getInstance().getFrame(project)!!
-            frame.setBounds(40, 40, WIDTH, HEIGHT)
+            frame.setBounds(20, 20, WIDTH, HEIGHT)
+            // More room for the editor, so popups and their side panels fit in the window.
+            ToolWindowManager.getInstance(project).getToolWindow("Project")?.hide()
         }
         val root = project.basePath!!
         for (shot in shots()) {
@@ -59,13 +63,11 @@ class ScreenshotTour : ProjectActivity {
     }
 
     private suspend fun take(project: Project, root: String, dir: File, shot: Shot) {
-        var original: String? = null
         val editor = withContext(Dispatchers.EDT) {
             val file = LocalFileSystem.getInstance().refreshAndFindFileByPath("$root/${shot.path}")!!
             val editor = FileEditorManager.getInstance(project).openTextEditor(OpenFileDescriptor(project, file), true)!!
             shot.edit?.let { (marker, replacement) ->
                 val document = editor.document
-                original = document.text
                 val at = document.text.indexOf(marker)
                 WriteCommandAction.runWriteCommandAction(project) {
                     document.replaceString(at, at + marker.length, replacement)
@@ -83,6 +85,7 @@ class ScreenshotTour : ProjectActivity {
         delay(3000)
         withContext(Dispatchers.EDT) {
             NotificationsManager.getNotificationsManager().getNotificationsOfType(Notification::class.java, project).forEach { it.expire() }
+            MessagePool.getInstance().clearErrors()
         }
         delay(500)
         withContext(Dispatchers.EDT) {
@@ -90,13 +93,6 @@ class ScreenshotTour : ProjectActivity {
             LookupManager.hideActiveLookup(project)
             val frame = WindowManager.getInstance().getFrame(project)!!
             JBPopupFactory.getInstance().getChildPopups(frame.rootPane).forEach { it.cancel() }
-            // Undo the shot's edit so the next shots show the file as it is.
-            original?.let { text ->
-                WriteCommandAction.runWriteCommandAction(project) {
-                    editor.document.setText(text)
-                    PsiDocumentManager.getInstance(project).commitDocument(editor.document)
-                }
-            }
         }
         delay(1000)
     }
@@ -122,9 +118,13 @@ class ScreenshotTour : ProjectActivity {
         graphics.scale(SCALE.toDouble(), SCALE.toDouble())
         frame.paint(graphics)
         val origin = frame.locationOnScreen
+        val frameBounds = java.awt.Rectangle(origin, frame.size)
         for (window in Window.getWindows()) {
             if (window == frame || !window.isShowing || window.width == 0) continue
             val at = window.locationOnScreen
+            if (!frameBounds.contains(java.awt.Rectangle(at, window.size))) {
+                File(file.parentFile, "clipped.txt").appendText("${file.name}: ${window.javaClass.simpleName} ${java.awt.Rectangle(at, window.size)} outside $frameBounds\n")
+            }
             val g = graphics.create(at.x - origin.x, at.y - origin.y, window.width, window.height)
             window.paint(g)
             g.dispose()
@@ -143,32 +143,33 @@ class ScreenshotTour : ProjectActivity {
         val wait: Long = 4000,
     )
 
+    // Shots that edit a file come after the ones showing it as is (edits stay in the temporary copy).
     private fun shots() = listOf(
         Shot("01-missing-element-quick-fix", "src/my-app.js", "<ui-avatar initials", caretShift = 4, action = "ShowIntentionActions", wait = 10000),
         Shot("02-scoped-element-to-templates", "src/features/base-panel.js", "'ui-button': UiButton", action = "GotoDeclaration"),
         Shot("03-event-listeners", "src/features/user-card.js", "'user-selected', {", action = "GotoDeclaration"),
+        Shot("07-quick-documentation", "src/features/notifications.js", "<ui-badge>2", caretShift = 2, action = "QuickJavaDoc"),
+        Shot("08-event-never-fired", "src/features/notifications.js", "@toast-vanished=", caretShift = 3, action = "ShowErrorDescription"),
         Shot(
             "04-property-completion", "src/features/team-panel.js", "<ui-avatar initials=\"AL\" ",
             caretShift = "<ui-avatar initials=\"AL\" ".length, action = "CodeCompletion",
             edit = "<ui-avatar initials=\"AL\">" to "<ui-avatar initials=\"AL\" >",
         ),
         Shot(
+            "06-tag-completion", "src/features/team-panel.js", "<ui-badge>3</ui-badge>\n      <ui",
+            caretShift = "<ui-badge>3</ui-badge>\n      <ui".length, action = "CodeCompletion",
+            edit = "<ui-badge>3</ui-badge>" to "<ui-badge>3</ui-badge>\n      <ui",
+        ),
+        Shot(
             "05-event-completion", "src/features/notifications.js", "<app-toast @",
             caretShift = "<app-toast @".length, action = "CodeCompletion",
             edit = "<ui-badge>2</ui-badge>" to "<ui-badge>2</ui-badge>\n      <app-toast @></app-toast>",
         ),
-        Shot(
-            "06-tag-completion", "src/features/team-panel.js", "<ui-badge>3</ui-badge>\n      <",
-            caretShift = "<ui-badge>3</ui-badge>\n      <".length, action = "CodeCompletion",
-            edit = "<ui-badge>3</ui-badge>" to "<ui-badge>3</ui-badge>\n      <",
-        ),
-        Shot("07-quick-documentation", "src/features/notifications.js", "<ui-badge>2", caretShift = 2, action = "QuickJavaDoc"),
-        Shot("08-event-never-fired", "src/features/notifications.js", "@toast-vanished=", caretShift = 3, action = "ShowErrorDescription"),
     )
 
     private companion object {
-        const val WIDTH = 1440
-        const val HEIGHT = 900
+        const val WIDTH = 1680
+        const val HEIGHT = 1050
         const val SCALE = 2
     }
 }
