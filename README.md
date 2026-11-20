@@ -59,9 +59,14 @@ class MyCard extends ScopedElementsMixin(LitElement) {
 - **Sub render functions**: a template in a function or variable outside the class
   (`function renderRow() { return html`...` }`) belongs to every class calling it, directly or through other
   functions, in any file. A function no class calls is not checked.
-- Ways to fire an event: `new CustomEvent('x')` / `new Event('x')` (string, `` `template` `` or constant), helper
-  calls such as `this.fire('x')`, and `Event` subclasses passing the name to `super('x')` (fired where they are
-  instantiated).
+- Ways to fire an event: `new CustomEvent('x')` / `new Event('x')`, helper calls such as `this.fire('x')`, and
+  `Event` subclasses passing the name to `super('x')` (fired where they are instantiated).
+- Event names: strings, `` `template` `` literals, and constants: variables, static fields, object properties
+  (`Events.CHANGE`, also nested and `as const`), and enum members.
+- Declared events, used when no dispatch is visible (for example in a library): JSDoc `@fires my-event` or
+  `@event my-event` on the element class (the custom elements manifest convention), and entries of a TypeScript
+  event map (`interface HTMLElementEventMap { 'my-event': CustomEvent }`). They count for navigation, completion,
+  and the *never fired* inspection.
 - JavaScript and TypeScript. Interpolations (`${...}`) and HTML comments in templates are ignored.
 
 ### Settings (Settings → Languages & Frameworks → Lit Scoped Elements)

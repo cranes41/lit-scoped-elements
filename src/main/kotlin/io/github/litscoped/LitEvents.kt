@@ -7,6 +7,16 @@ import com.intellij.lang.javascript.psi.JSExpression
 import com.intellij.lang.javascript.psi.JSField
 import com.intellij.lang.javascript.psi.JSLiteralExpression
 import com.intellij.lang.javascript.psi.JSNewExpression
+import com.intellij.lang.javascript.psi.JSObjectLiteralExpression
+import com.intellij.lang.javascript.psi.JSParenthesizedExpression
+import com.intellij.lang.javascript.psi.JSProperty
+import com.intellij.lang.javascript.psi.TypeScriptSatisfiesExpression
+import com.intellij.lang.javascript.psi.ecma6.TypeScriptAsExpression
+import com.intellij.lang.javascript.psi.ecma6.TypeScriptInterface
+import com.intellij.lang.javascript.psi.ecma6.TypeScriptPropertySignature
+import com.intellij.psi.PsiComment
+import com.intellij.psi.PsiFile
+import com.intellij.psi.PsiWhiteSpace
 import com.intellij.lang.javascript.psi.JSReferenceExpression
 import com.intellij.lang.javascript.psi.JSVariable
 import com.intellij.lang.javascript.psi.ecma6.JSStringTemplateExpression
@@ -35,6 +45,11 @@ data class EventBinding(val eventName: String, val range: TextRange, val tagName
  * - `new CustomEvent('my-event')`, `new Event('my-event')` (string, `` `template` `` or constant)
  * - helper calls configured in [LitSettings.eventHelpers], e.g. `this.fire('my-event')`
  * - `new SelectEvent()` where `class SelectEvent extends Event { constructor() { super('select') } }`
+ *
+ * Names can be literals or constants: variables, static fields, object properties (`Events.CHANGE`), enum members,
+ * `as const` values. Events can also be declared without a visible dispatch, by a JSDoc `@fires my-event` (or
+ * `@event`) tag on the element class, or by an entry of a TypeScript event map
+ * (`interface HTMLElementEventMap { 'my-event': … }`).
  */
 object LitEvents {
     private val EVENT_CONSTRUCTORS = setOf("CustomEvent", "Event")
@@ -47,6 +62,9 @@ object LitEvents {
     private val BINDINGS_KEY = Key.create<CachedValue<List<EventBinding>>>("lit.scoped.eventBindings")
     private val EVENT_SUPERCLASS = Regex("""\b(CustomEvent|Event)\b""")
     private val EVENT_ATTRIBUTE = Regex("""@([^\s=/>"'`]+)\s*=""")
+    // `@fires my-event - text`, `@fires {CustomEvent<T>} my-event`, `@event my-event`
+    private val DOC_EVENT = Regex("""@(?:fires|event)\s+(?:\{[^}\n]*}\s*)?([A-Za-z][\w:.\-]*)""")
+    private val EVENT_MAP = Regex(""".*EventMap""")
 
     // ------------------------------------------------------------- templates
 
@@ -119,18 +137,84 @@ object LitEvents {
         else -> null
     }
 
-    /** Evaluates an event name: a string literal, or a constant / static field initialized with one. */
+    /**
+     * Evaluates an event name: a string literal, or a constant initialized with one (variable, static field,
+     * enum member, object property such as `Events.CHANGE`), through `( )`, `as const` and `satisfies`.
+     */
     private fun evaluateName(expression: JSExpression?, depth: Int = 0): String? {
         if (expression == null || depth > MAX_DEPTH) return null
         return when (expression) {
             is JSLiteralExpression -> literalString(expression)
+            is JSParenthesizedExpression -> evaluateName(expression.innerExpression, depth + 1)
+            is TypeScriptAsExpression -> evaluateName(expression.expression, depth + 1)
+            is TypeScriptSatisfiesExpression -> evaluateName(expression.expression, depth + 1)
             is JSReferenceExpression -> when (val resolved = ScopedElements.resolveDeep(expression)) {
                 is JSVariable -> evaluateName(resolved.initializer, depth + 1)
                 is JSField -> evaluateName(resolved.initializer, depth + 1)
-                else -> null
+                is JSProperty -> evaluateName(resolved.value, depth + 1)
+                // `Events.CHANGE` on an `as const` object resolves to a synthetic element: read the object instead.
+                else -> propertyOf(expression, depth)?.let { evaluateName(it.value, depth + 1) }
             }
             else -> null
         }
+    }
+
+    /** The property named by the qualified [reference] (`Events.CHANGE`), found in its qualifier's object literal; null when unqualified. */
+    private fun propertyOf(reference: JSReferenceExpression, depth: Int): JSProperty? {
+        val name = reference.referenceName ?: return null
+        val qualifier = reference.qualifier ?: return null
+        return objectLiteral(qualifier, depth + 1)?.findProperty(name)
+    }
+
+    /** The object literal [expression] evaluates to: a constant initialized with one, or a property of one. */
+    private fun objectLiteral(expression: JSExpression?, depth: Int): JSObjectLiteralExpression? {
+        if (expression == null || depth > MAX_DEPTH) return null
+        return when (expression) {
+            is JSObjectLiteralExpression -> expression
+            is JSParenthesizedExpression -> objectLiteral(expression.innerExpression, depth + 1)
+            is TypeScriptAsExpression -> objectLiteral(expression.expression, depth + 1)
+            is TypeScriptSatisfiesExpression -> objectLiteral(expression.expression, depth + 1)
+            is JSReferenceExpression -> when (val resolved = ScopedElements.resolveDeep(expression)) {
+                is JSVariable -> objectLiteral(resolved.initializer, depth + 1)
+                is JSField -> objectLiteral(resolved.initializer, depth + 1)
+                is JSProperty -> objectLiteral(resolved.value, depth + 1)
+                else -> objectLiteral(propertyOf(expression, depth)?.value, depth + 1)
+            }
+            else -> null
+        }
+    }
+
+    // ------------------------------------------------------- declarations
+
+    /** An event named in a JSDoc `@fires` / `@event` tag: [range] is the name's range in [comment]. */
+    class DocumentedEvent(val name: String, val comment: PsiComment, val range: TextRange)
+
+    /** Events declared in the JSDoc comment of [cls] with `@fires` or `@event`. Reads text only: safe in the indexer. */
+    fun documentedEvents(cls: JSClass): List<DocumentedEvent> = docComments(cls).flatMap { comment ->
+        documentedEventNames(comment.text).map { (name, range) -> DocumentedEvent(name, comment, range) }
+    }
+
+    /** Names (and their ranges) of the events declared in a doc comment's [text]. */
+    fun documentedEventNames(text: String): List<Pair<String, TextRange>> =
+        if (!text.startsWith("/**")) emptyList()
+        else DOC_EVENT.findAll(text).map { match ->
+            val name = match.groups[1]!!
+            name.value to TextRange(name.range.first, name.range.last + 1)
+        }.toList()
+
+    /** The doc comment of [cls]: inside the class element (as parsed) or right before it. */
+    private fun docComments(cls: JSClass): List<PsiComment> {
+        val result = PsiTreeUtil.getChildrenOfTypeAsList(cls, PsiComment::class.java).toMutableList()
+        var previous = cls.prevSibling
+        while (previous is PsiWhiteSpace) previous = previous.prevSibling
+        if (previous is PsiComment) result += previous
+        return result.filter { it.text.startsWith("/**") }
+    }
+
+    /** True for an entry of a TypeScript event map, as `'my-event'` in `interface HTMLElementEventMap { 'my-event': E }`. */
+    fun isEventMapEntry(signature: TypeScriptPropertySignature): Boolean {
+        val owner = PsiTreeUtil.getParentOfType(signature, TypeScriptInterface::class.java) ?: return false
+        return owner.name?.let(EVENT_MAP::matches) == true
     }
 
     // ------------------------------------------------------------- searches
@@ -169,7 +253,32 @@ object LitEvents {
                 }
             }
         }
+        // `@fires` in the JSDoc of a class that fires nothing visible itself (a dispatch is a better target).
+        val dispatchingClasses = all.mapNotNullTo(HashSet()) { it.second }
+        for (file in ProjectSearch.filesWithAnyKey(project, listOf(LitIndex.string(eventName)))) {
+            ProgressManager.checkCanceled()
+            for (cls in PsiTreeUtil.findChildrenOfType(file, JSClass::class.java)) {
+                if (cls in dispatchingClasses) continue
+                for (documented in documentedEvents(cls)) {
+                    if (documented.name != eventName) continue
+                    all += TemplateLocation(documented.comment, documented.range, "@fires $eventName") to cls
+                }
+            }
+        }
+        // An event map entry only says the event exists: a target when nothing else is found.
+        if (all.isEmpty()) all += eventMapEntries(project, eventName).map { it to null }
         return all.distinctBy { it.first }
+    }
+
+    /** Names of the entries of TypeScript event maps declaring [eventName]. */
+    private fun eventMapEntries(project: Project, eventName: String): List<PsiElement> {
+        val result = mutableListOf<PsiElement>()
+        for (file in ProjectSearch.filesWithAnyKey(project, listOf(LitIndex.string(eventName)))) {
+            for (signature in PsiTreeUtil.findChildrenOfType(file, TypeScriptPropertySignature::class.java)) {
+                if (signature.name == eventName && isEventMapEntry(signature)) result += signature.nameIdentifier ?: signature
+            }
+        }
+        return result
     }
 
     /** Places that listen to [eventName]: `@event-name=` template bindings and `addEventListener(...)` calls. */
@@ -198,13 +307,14 @@ object LitEvents {
     }
 
     /**
-     * Names of the events fired by code in [cls] or its super classes: dispatch calls (see [dispatchedEventName])
-     * and instantiations of `Event` subclasses. Cached until the next PSI or settings change.
+     * Names of the events fired by code in [cls] or its super classes: dispatch calls (see [dispatchedEventName]),
+     * instantiations of `Event` subclasses, and events declared with JSDoc `@fires`. Cached until the next PSI or settings change.
      */
     fun eventsFiredBy(cls: JSClass): Set<String> = CachedValuesManager.getCachedValue(cls) {
         val names = LinkedHashSet<String>()
         for (current in classHierarchy(cls)) {
             ProgressManager.checkCanceled()
+            documentedEvents(current).mapTo(names) { it.name }
             for (call in PsiTreeUtil.findChildrenOfType(current, JSCallExpression::class.java)) {
                 if (call.methodExpression is JSSuperExpression) continue
                 if (isDispatchCall(call)) {

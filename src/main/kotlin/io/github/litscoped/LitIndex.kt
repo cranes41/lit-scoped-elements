@@ -8,6 +8,8 @@ import com.intellij.lang.javascript.psi.JSProperty
 import com.intellij.lang.javascript.psi.JSReferenceExpression
 import com.intellij.lang.javascript.psi.ecma6.JSStringTemplateExpression
 import com.intellij.lang.javascript.psi.ecmal4.JSSuperExpression
+import com.intellij.lang.javascript.psi.ecma6.TypeScriptPropertySignature
+import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiRecursiveElementWalkingVisitor
@@ -26,7 +28,8 @@ import com.intellij.util.io.KeyDescriptor
  * - `tag:<name>`   a custom element tag opened in a Lit `html` template
  * - `bind:<event>` an `@event` binding in a Lit template
  * - `str:<value>`  an event-name-like string literal passed as first argument of a call or `new`
- *                  (`new CustomEvent('x')`, `addEventListener('x')`, `super('x')`, `customElements.define('x', …)`)
+ *                  (`new CustomEvent('x')`, `addEventListener('x')`, `super('x')`, `customElements.define('x', …)`),
+ *                  an event declared in a JSDoc `@fires x` tag, or an entry of a TypeScript `…EventMap` interface
  * - `reg:<name>`   an object key named like a custom element (`{ 'x-el': XEl }`), maybe a scopedElements entry
  * - `dyn`          an event-related call whose first argument is not a literal (`new Event(PANEL_CLOSE)`),
  *                  so the name can only be known by resolving it
@@ -37,7 +40,7 @@ class LitIndex : ScalarIndexExtension<String>() {
 
     override fun getName(): ID<String, Void> = NAME
 
-    override fun getVersion(): Int = 3
+    override fun getVersion(): Int = 4
 
     override fun dependsOnFileContent(): Boolean = true
 
@@ -75,6 +78,10 @@ class LitIndex : ScalarIndexExtension<String>() {
                         }
                         is JSCallExpression -> indexCall(element, keys)
                         is JSProperty -> element.name?.takeIf(ScopedElements::isCustomElementName)?.let { keys += registration(it) }
+                        is PsiComment -> LitEvents.documentedEventNames(element.text).forEach { keys += string(it.first) }
+                        is TypeScriptPropertySignature -> if (LitEvents.isEventMapEntry(element)) {
+                            element.name?.takeIf(EVENT_NAME_LIKE::matches)?.let { keys += string(it) }
+                        }
                     }
                     super.visitElement(element)
                 }

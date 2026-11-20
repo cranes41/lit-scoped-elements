@@ -11,7 +11,8 @@ import com.intellij.psi.impl.FakePsiElement
 import javax.swing.Icon
 
 /**
- * A navigation target pointing at an exact range of a Lit template (a tag or an `@event` attribute).
+ * A navigation target pointing at an exact range of a Lit template (a tag or an `@event` attribute), or of another
+ * element that can't be a target itself, such as the event name in a JSDoc `@fires my-event` tag.
  *
  * Elements of the injected HTML can't be used as targets: navigating to them opens the host file at its start.
  * This element lives in the host file and navigates to the right offset; its presentation shows the tag and the
@@ -20,24 +21,27 @@ import javax.swing.Icon
  * The range is tracked with a smart pointer so it follows edits made while a popup or usage view is open, and
  * the presentation is computed once, up front, so rendering never reads stale offsets.
  *
- * @param rangeInTemplate the range to navigate to, relative to [template]
- * @param tagStartInTemplate offset of the `<` of the element the range belongs to, relative to [template]
+ * @param container the element holding the range (the template)
+ * @param rangeInContainer the range to navigate to, relative to [container]
+ * @param presentableText what the "Choose target" popup shows
  */
 class TemplateLocation(
-    template: JSStringTemplateExpression,
-    rangeInTemplate: TextRange,
-    tagStartInTemplate: Int,
+    container: PsiElement,
+    rangeInContainer: TextRange,
+    private val presentableText: String,
 ) : FakePsiElement() {
 
-    private val file: PsiFile = template.containingFile
-    private val initialRange: TextRange = rangeInTemplate.shiftRight(template.textRange.startOffset)
-    private val templatePointer = SmartPointerManager.createPointer(template)
-    private val rangePointer = SmartPointerManager.getInstance(file.project).createSmartPsiFileRangePointer(file, initialRange)
+    /** A range of a Lit template; [tagStartInTemplate] is the offset of the `<` of the element it belongs to. */
+    constructor(template: JSStringTemplateExpression, rangeInTemplate: TextRange, tagStartInTemplate: Int) :
+        this(template, rangeInTemplate, openingTag(template, tagStartInTemplate))
 
-    private val presentableText: String = openingTag(template, tagStartInTemplate)
+    private val file: PsiFile = container.containingFile
+    private val initialRange: TextRange = rangeInContainer.shiftRight(container.textRange.startOffset)
+    private val containerPointer = SmartPointerManager.createPointer(container)
+    private val rangePointer = SmartPointerManager.getInstance(file.project).createSmartPsiFileRangePointer(file, initialRange)
     private val locationString: String = lineOf(initialRange.startOffset)?.let { "${file.name}:$it" } ?: file.name
 
-    override fun getParent(): PsiElement = templatePointer.element ?: file
+    override fun getParent(): PsiElement = containerPointer.element ?: file
 
     override fun getContainingFile(): PsiFile = file
 
@@ -51,7 +55,7 @@ class TemplateLocation(
         return if (range.endOffset <= contents.length) range.subSequence(contents).toString() else ""
     }
 
-    override fun isValid(): Boolean = file.isValid && templatePointer.element != null && rangePointer.range != null
+    override fun isValid(): Boolean = file.isValid && containerPointer.element != null && rangePointer.range != null
 
     override fun getName(): String = text
 
@@ -80,9 +84,9 @@ class TemplateLocation(
         return if (offset in 0..document.textLength) document.getLineNumber(offset) + 1 else null
     }
 
-    private companion object {
+    companion object {
         /** The opening tag starting at [tagStart], e.g. `<child-el id="a" @item-selected=${…}>`, quotes respected. */
-        fun openingTag(template: JSStringTemplateExpression, tagStart: Int): String {
+        private fun openingTag(template: JSStringTemplateExpression, tagStart: Int): String {
             val text = template.text
             if (tagStart !in text.indices) return ""
             val literal = ScopedElements.literalText(template)

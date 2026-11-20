@@ -4,7 +4,8 @@ Reports <code>@my-event</code> bindings in Lit templates when nothing in the pro
 which often means a typo in the event name.
 <p>
   Fired means <code>new CustomEvent('my-event')</code>, <code>new Event('my-event')</code>, a configured helper call
-  such as <code>this.fire('my-event')</code>, or an <code>Event</code> subclass passing the name to <code>super()</code>.
+  such as <code>this.fire('my-event')</code>, an <code>Event</code> subclass passing the name to <code>super()</code>, a JSDoc <code>@fires my-event</code> tag on
+  an element class, or an entry of a TypeScript event map (<code>interface HTMLElementEventMap</code>).
   DOM events (<code>click</code>, <code>input</code>, …) are never reported.
 </p>
 <!-- tooltip end -->
