@@ -19,13 +19,14 @@ object TagUsages {
     /**
      * Calls [consumer] for every `<tagName>` and `</tagName>` in Lit templates whose `scopedElements` resolve
      * [tagName] to [property] (see [TemplateOwners]), in files of [scope] (all indexed files when null).
+     * Stops as soon as [consumer] returns false, and then returns false, like a [com.intellij.util.Processor].
      */
     fun forEach(
         property: JSProperty,
         tagName: String,
         scope: SearchScope? = null,
-        consumer: (JSStringTemplateExpression, TagOccurrence) -> Unit,
-    ) {
+        consumer: (JSStringTemplateExpression, TagOccurrence) -> Boolean,
+    ): Boolean {
         for (file in ProjectSearch.filesWithAnyKey(property.project, listOf(LitIndex.tag(tagName)))) {
             if (scope != null && !scope.contains(file.virtualFile ?: continue)) continue
             for (template in PsiTreeUtil.findChildrenOfType(file, JSStringTemplateExpression::class.java)) {
@@ -35,9 +36,10 @@ object TagUsages {
                 if (tags.isEmpty()) continue
                 val applies = TemplateOwners.findOwnerClasses(template)
                     .any { owner -> ScopedElements.getScopedElements(owner)[tagName].orEmpty().any { it.property == property } }
-                if (applies) tags.forEach { consumer(template, it) }
+                if (applies && !tags.all { consumer(template, it) }) return false
             }
         }
+        return true
     }
 
     /**

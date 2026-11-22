@@ -37,4 +37,11 @@ class LitIndexTest : BasePlatformTestCase() {
             .map { it.name }
         assertEquals(listOf("with.js"), files)
     }
+
+    fun testLongEventNamesAreIndexed() {
+        val name = "my-app:" + "very-long-event-name-".repeat(10) + "changed"
+        assertTrue(name.length > 200)
+        val file = myFixture.configureByText("a.js", "this.dispatchEvent(new CustomEvent('$name'));")
+        assertContainsElements(LitIndex.keysOf(file), LitIndex.string(name))
+    }
 }

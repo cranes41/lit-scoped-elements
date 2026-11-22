@@ -40,7 +40,7 @@ class LitIndex : ScalarIndexExtension<String>() {
 
     override fun getName(): ID<String, Void> = NAME
 
-    override fun getVersion(): Int = 4
+    override fun getVersion(): Int = 5
 
     override fun dependsOnFileContent(): Boolean = true
 
@@ -64,7 +64,9 @@ class LitIndex : ScalarIndexExtension<String>() {
         fun string(value: String) = "str:$value"
         fun registration(tagName: String) = "reg:$tagName"
 
-        private val EVENT_NAME_LIKE = Regex("""[A-Za-z_$][\w$:.\-]{0,63}""")
+        // Long enough for any real event name (generated or namespaced ones included); a shorter limit would
+        // leave long names unindexed and report them as never fired.
+        private val EVENT_NAME_LIKE = Regex("""[A-Za-z_$][\w$:.\-]{0,254}""")
         private val EVENT_RELATED_CALLEE = Regex("""(?i).*(event|fire|emit|dispatch|listen).*""")
 
         fun keysOf(file: PsiFile): Set<String> {

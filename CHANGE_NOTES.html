@@ -1,3 +1,11 @@
+<h3>1.1.1</h3>
+<ul>
+  <li>Renaming a <code>scopedElements</code> key also renames the keys registering the same tag for a template it shares
+      (a base class and a subclass), so no class loses its element.</li>
+  <li>Rename refuses names that aren't valid custom element names.</li>
+  <li>Event names longer than 64 characters are found (no false "Nothing in the project fires" warning).</li>
+  <li>Find Usages of a <code>scopedElements</code> key stops searching as soon as it has what it needs.</li>
+</ul>
 <h3>1.1.0</h3>
 <ul>
   <li>Find Usages and Rename of <code>scopedElements</code> keys, updating the tags in templates.</li>

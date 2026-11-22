@@ -33,6 +33,15 @@ class EventInspectionsTest : BasePlatformTestCase() {
         myFixture.checkHighlighting(false, false, true)
     }
 
+    fun testLongEventNameIsFound() {
+        val name = "x-" + "long-".repeat(20) + "event"
+        // Fired by a helper call only: dispatchEvent(new CustomEvent(…)) would also index the file as `dyn`.
+        myFixture.addFileToProject("long.js", "class E extends LitElement { a() { this.fire('$name'); } }")
+        myFixture.enableInspections(UnknownEventInspection())
+        myFixture.configureByText("listener.js", "class L extends LitElement { render() { return html`<div @$name=${"$"}{h}></div>`; } }")
+        myFixture.checkHighlighting(false, false, true)
+    }
+
     fun testIgnoredEvents() {
         myFixture.enableInspections(UnknownEventInspection().apply { ignoredEvents = mutableListOf("sl-.*") })
         myFixture.configureByText("listener.js", "class L extends LitElement { render() { return html`<div @sl-change=${"$"}{h}></div>`; } }")

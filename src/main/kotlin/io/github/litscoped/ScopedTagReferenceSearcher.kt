@@ -23,6 +23,7 @@ class ScopedTagReferenceSearcher : QueryExecutorBase<PsiReference, ReferencesSea
         val literal = property.parent as? JSObjectLiteralExpression ?: return
         if (!ScopedElements.isScopedElementsObject(literal)) return
 
+        // A false from the consumer (e.g. a search for any one usage) stops the search.
         TagUsages.forEach(property, tagName, parameters.effectiveSearchScope) { template, tag ->
             consumer.process(ScopedTagReference(template, tag.range, tag.name))
         }

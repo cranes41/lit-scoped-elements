@@ -52,6 +52,7 @@ class ScopedElementUsagesGotoHandler : GotoDeclarationHandler {
                     val tagStart = tag.range.startOffset - 1
                     result += TemplateLocation(template, TextRange(tagStart, tag.range.endOffset), tagStart)
                 }
+                true
             }
             return result
         }

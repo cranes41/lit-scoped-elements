@@ -54,6 +54,7 @@
                                                        implementation="io.github.litscoped.ScopedTagDocumentationTargetProvider"/>
         <renamePsiElementProcessor order="first"
                                    implementation="io.github.litscoped.ScopedElementKeyRenameProcessor"/>
+        <renameInputValidator implementation="io.github.litscoped.ScopedElementKeyRenameValidator"/>
         <projectConfigurable parentId="language"
                              instance="io.github.litscoped.LitSettingsConfigurable"
                              id="io.github.litscoped.settings"
