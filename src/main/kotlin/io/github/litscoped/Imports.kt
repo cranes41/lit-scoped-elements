@@ -3,7 +3,7 @@ package io.github.litscoped
 import com.intellij.lang.ecmascript6.psi.ES6ImportDeclaration
 import com.intellij.lang.javascript.JSLanguageDialect
 import com.intellij.lang.javascript.psi.ecmal4.JSClass
-import com.intellij.lang.javascript.psi.impl.JSChangeUtil
+import com.intellij.lang.javascript.psi.impl.JSPsiElementFactory
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiParserFacade
@@ -38,8 +38,8 @@ object Imports {
 
         val isDefault = cls.text.startsWith("export default") || cls.parent?.text?.startsWith("export default") == true
         val text = if (isDefault) "import $name from '$path';" else "import { $name } from '$path';"
-        val dialect = file.language as? JSLanguageDialect ?: return
-        val statement = JSChangeUtil.createStatementFromText(file.project, text, dialect)?.psi ?: return
+        if (file.language !is JSLanguageDialect) return
+        val statement = JSPsiElementFactory.createJSSourceElement(text, file, ES6ImportDeclaration::class.java)
         val newline = PsiParserFacade.getInstance(file.project).createWhiteSpaceFromText("\n")
         val last = imports.lastOrNull()
         if (last != null) {

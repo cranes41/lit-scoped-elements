@@ -73,7 +73,7 @@ object ScopedElements {
         val tagged = template.parent as? ES6TaggedTemplateExpression ?: return false
         if (tagged.templateExpression != template) return false
         val tag = tagged.tag ?: return false
-        val name = (tag as? JSReferenceExpression)?.referencedName ?: tag.text
+        val name = (tag as? JSReferenceExpression)?.referenceName ?: tag.text
         return name in TEMPLATE_TAGS
     }
 
@@ -243,7 +243,7 @@ object ScopedElements {
 
             is JSReferenceExpression -> {
                 val qualifier = expr.qualifier
-                if (expr.referencedName == MEMBER_NAME && qualifier != null) {
+                if (expr.referenceName == MEMBER_NAME && qualifier != null) {
                     // ...super.scopedElements  /  ...OtherElement.scopedElements
                     val classes = when (qualifier) {
                         is JSSuperExpression -> superClassesOf(owner)

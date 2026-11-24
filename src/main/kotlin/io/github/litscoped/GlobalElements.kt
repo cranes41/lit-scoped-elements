@@ -47,10 +47,10 @@ object GlobalElements {
         val arguments = call.arguments
         val tagName = LitEvents.literalString(arguments.firstOrNull()) ?: return null
         if (!ScopedElements.isCustomElementName(tagName)) return null
-        return when (callee.referencedName) {
+        return when (callee.referenceName) {
             DEFINE -> {
                 val qualifier = callee.qualifier as? JSReferenceExpression ?: return null
-                if (qualifier.referencedName != REGISTRY) return null
+                if (qualifier.referenceName != REGISTRY) return null
                 val elementClass = when (val value = arguments.getOrNull(1)) {
                     is JSReferenceExpression -> ScopedElements.resolveDeep(value) as? JSClass
                     is JSClass -> value

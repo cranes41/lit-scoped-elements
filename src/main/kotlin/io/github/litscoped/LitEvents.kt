@@ -127,7 +127,7 @@ object LitEvents {
         return if (call.arguments.firstOrNull() == expression) call else null
     }
 
-    private fun calleeName(call: JSCallExpression): String? = (call.methodExpression as? JSReferenceExpression)?.referencedName
+    private fun calleeName(call: JSCallExpression): String? = (call.methodExpression as? JSReferenceExpression)?.referenceName
 
     /** The value of a string literal, including a template literal without `${...}`. No resolving. */
     fun literalString(expression: JSExpression?): String? = when (expression) {

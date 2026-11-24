@@ -114,7 +114,7 @@ object TemplateOwners {
 
     private fun callsSuper(member: PsiElement, name: String): Boolean =
         PsiTreeUtil.findChildrenOfType(member, JSReferenceExpression::class.java)
-            .any { it.referencedName == name && it.qualifier is JSSuperExpression }
+            .any { it.referenceName == name && it.qualifier is JSSuperExpression }
 
     /**
      * The closest named declaration that contains [element] and can be referenced elsewhere:

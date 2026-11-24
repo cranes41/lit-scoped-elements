@@ -102,7 +102,7 @@ class LitIndex : ScalarIndexExtension<String>() {
                     keys += DYNAMIC
                     return
                 }
-                val callee = (call.methodExpression as? JSReferenceExpression)?.referencedName ?: return
+                val callee = (call.methodExpression as? JSReferenceExpression)?.referenceName ?: return
                 if (EVENT_RELATED_CALLEE.matches(callee)) keys += DYNAMIC
             }
         }
